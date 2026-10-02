@@ -51,8 +51,6 @@ desde que justificadas.
 - Repositório Git com o projeto.
 - README explicando como rodar (backend e frontend) e as decisões tomadas.
 - Massa de dados de exemplo (produtos) para testar sem digitar tudo na mão.
-- Um vídeo curto (2 a 3 minutos) mostrando funcionando e comentando as
-  escolhas principais.
 
 ## Prazo
 1 a 5 dias. Não precisa entregar tudo: prefira um escopo menor, bem feito e
