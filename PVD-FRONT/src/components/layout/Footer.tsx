@@ -10,8 +10,8 @@ export const Footer: React.FC = () => {
     <>
       <footer className="w-full bg-white border-t border-slate-200 py-2.5 px-4 lg:px-6 z-20">
         <div className="w-full flex flex-col md:flex-row items-center justify-between text-slate-500 font-mono-num text-xs gap-2">
-          <div className="flex items-center gap-3">
-            <span className="font-semibold text-slate-700">
+          <div className="flex flex-wrap justify-center items-center gap-3">
+            <span className="font-semibold text-slate-700 text-center">
               NEXUS POS ENGINE v3.4.12 • TERMINAL IDENT: POS-01-SP
             </span>
             {parkedSales.length > 0 && (
@@ -25,7 +25,7 @@ export const Footer: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-4 text-[11px]">
+          <div className="flex flex-wrap justify-center items-center gap-4 text-[11px]">
             <span>NFS-e Série 001 Homologado</span>
             <span>Ambiente: Produção Sefaz</span>
             <span>© 2024 Nexus Retail Systems</span>
