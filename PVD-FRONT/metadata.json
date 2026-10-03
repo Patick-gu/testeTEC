@@ -1,0 +1,6 @@
+{
+  "name": "Nexus PDV - Sistema de Frente de Caixa",
+  "description": "Sistema moderno de Ponto de Venda (PDV) com Terminal de Caixa, Catálogo e Preços, Fechamento de Venda e Movimento de Caixa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
