@@ -7,63 +7,62 @@ export const HelpModal: React.FC = () => {
   if (!showHelpModal) return null;
 
   const shortcuts = [
-    { key: 'F1', desc: 'Ajuda / Atalhos do Sistema de Caixa' },
-    { key: 'F2', desc: 'Consulta Rápida de Produtos e Catálogo com busca' },
-    { key: 'F3', desc: 'Definir Quantidade de Multiplicação (ex: 3*789...)' },
-    { key: 'F4', desc: 'Cancelar / Estornar Último Item Bipado' },
-    { key: 'F5', desc: 'Pagamento em Dinheiro (Sugerir Valor Exato)' },
-    { key: 'F6', desc: 'Pagamento Instantâneo via PIX Dinâmico TEF' },
-    { key: 'F8', desc: 'Abertura rápida de Sangria ou Suprimento de Gaveta' },
-    { key: 'F9', desc: 'Identificar Cliente / Inserir CPF na Nota Fiscal' },
-    { key: 'F10', desc: 'Fechar Venda / Ir para Tela de Recebimento' },
-    { key: 'F11', desc: 'Deixar Venda em Espera para atender próximo cliente' },
-    { key: 'F12', desc: 'Imprimir Cupom Térmico / Reimprimir Bobina' },
-    { key: 'ESC', desc: 'Retornar ao Terminal Direto / Fechar Modais' },
-    { key: 'ENTER', desc: 'Confirmar Ação / Inserir Produto no Carrinho' },
-    { key: 'ALT + 0..5', desc: 'Filtrar Categorias Rápidas no Catálogo' }
+    { key: 'F1', desc: 'Ajuda / Atalhos do Sistema' },
+    { key: 'F2', desc: 'Consulta Rápida de Produtos' },
+    { key: 'F3', desc: 'Definir Quantidade' },
+    { key: 'F4', desc: 'Cancelar Último Item' },
+    { key: 'F5', desc: 'Pagamento em Dinheiro Exato' },
+    { key: 'F6', desc: 'Pagamento PIX Dinâmico' },
+    { key: 'F8', desc: 'Sangria ou Suprimento' },
+    { key: 'F9', desc: 'Identificar Cliente' },
+    { key: 'F10', desc: 'Fechar Venda' },
+    { key: 'F11', desc: 'Venda em Espera' },
+    { key: 'F12', desc: 'Imprimir Cupom' },
+    { key: 'ESC', desc: 'Retornar / Fechar Modais' },
+    { key: 'ENTER', desc: 'Confirmar Ação' },
+    { key: 'ALT+Num', desc: 'Filtrar Categorias' }
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 max-w-lg w-full flex flex-col animate-in fade-in duration-200">
         
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-blue-400 text-xl">keyboard</span>
-            <span className="text-sm font-bold tracking-tight">Guia de Atalhos Operacionais Nexus PDV</span>
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+              <span className="material-symbols-outlined text-xl">keyboard</span>
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">Guia de Atalhos</h2>
+              <p className="text-xs text-slate-400">Atalhos operacionais do sistema</p>
+            </div>
           </div>
           <button
             onClick={() => setShowHelpModal(false)}
-            className="text-slate-400 hover:text-white"
+            className="text-slate-400 hover:text-slate-600 transition-colors"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
-        <div className="p-5 flex flex-col gap-3 max-h-[480px] overflow-y-auto">
-          <p className="text-xs text-slate-500">
-            O terminal Nexus PDV foi desenhado para operação de alto rendimento com 100% de suporte a navegação por teclado e leitor de código de barras.
-          </p>
-
-          <div className="grid grid-cols-1 gap-2 pt-1">
-            {shortcuts.map((s) => (
-              <div
-                key={s.key}
-                className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs"
-              >
-                <span className="font-mono-num font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                  {s.key}
-                </span>
-                <span className="text-slate-700 font-medium text-right">{s.desc}</span>
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-2 mb-4">
+          {shortcuts.map((s) => (
+            <div
+              key={s.key}
+              className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm"
+            >
+              <span className="font-semibold text-slate-800 bg-white border border-slate-200/60 px-2.5 py-1 rounded-lg">
+                {s.key}
+              </span>
+              <span className="text-slate-500 text-right">{s.desc}</span>
+            </div>
+          ))}
         </div>
 
-        <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="flex justify-end pt-4 border-t border-slate-100">
           <button
             onClick={() => setShowHelpModal(false)}
-            className="px-5 h-9 rounded-lg bg-slate-800 text-white font-mono-num text-xs font-bold hover:bg-slate-900"
+            className="px-6 h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold text-sm transition-colors"
           >
             Entendido [ESC]
           </button>

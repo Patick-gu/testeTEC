@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTerminalService } from './service';
+import { usePdv } from '../../context/PdvContext';
 import { styles } from './style';
 
 export const TerminalScreen: React.FC = () => {
+  const { addItemByCode } = usePdv();
   const {
     cart,
     subtotal,
@@ -13,7 +15,6 @@ export const TerminalScreen: React.FC = () => {
     lastScannedItem,
     quantityMultiplier,
     setQuantityMultiplier,
-    removeItem,
     updateItemQuantity,
     clearCart,
     parkCurrentSale,
@@ -26,9 +27,27 @@ export const TerminalScreen: React.FC = () => {
     setBarcodeInput,
     inputRef,
     handleBarcodeSubmit,
-    handleQuickPayment
+    handleQuickPayment,
+    authModal,
+    requestRemoveItem,
+    setAuthInput,
+    confirmRemoveItem,
+    cancelRemoveItem
   } = useTerminalService();
 
+  // Focus the quantity input of the last scanned item automatically
+  React.useEffect(() => {
+    if (lastScannedItem) {
+      setTimeout(() => {
+        const qtyInput = document.getElementById('lastItemQtyInput');
+        if (qtyInput) {
+          qtyInput.focus();
+          // Optionally select the text so typing overwrites it
+          (qtyInput as HTMLInputElement).select();
+        }
+      }, 50);
+    }
+  }, [lastScannedItem?.id]);
   return (
     <div className={styles.container}>
       <div className={styles.wrapper}>
@@ -85,7 +104,7 @@ export const TerminalScreen: React.FC = () => {
               </div>
             </form>
 
-            {lastScannedItem ? (
+            {lastScannedItem && (
               <div className={styles.lastScannedContainer}>
                 <div className={styles.lastScannedLeft}>
                   <div className={styles.lastScannedImgWrapper}>
@@ -106,18 +125,33 @@ export const TerminalScreen: React.FC = () => {
                 </div>
 
                 <div className={styles.lastScannedRight}>
-                  <span className={styles.lastScannedDetails}>
-                    {lastScannedItem.quantity} {lastScannedItem.product.unit} × R$ {lastScannedItem.unitPrice.toFixed(2).replace('.', ',')}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="lastItemQtyInput"
+                      type="number"
+                      min="0.1"
+                      step={lastScannedItem.product.isWeighable ? "0.1" : "1"}
+                      value={lastScannedItem.quantity}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) updateItemQuantity(lastScannedItem.id, val);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          inputRef.current?.focus(); // return to barcode input
+                        }
+                      }}
+                      className="w-20 h-10 px-2 bg-slate-50 border border-slate-200/60 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-lg text-lg font-bold font-mono-num text-slate-800 text-center transition-all outline-none"
+                    />
+                    <span className={styles.lastScannedDetails}>
+                      {lastScannedItem.product.unit === 'UN' ? '' : lastScannedItem.product.unit} × R$ {lastScannedItem.unitPrice.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
                   <div className={styles.lastScannedSubtotal}>
                     R$ {lastScannedItem.subtotal.toFixed(2).replace('.', ',')}
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className={styles.emptyScannedContainer}>
-                <span className={styles.emptyScannedIcon}>qr_code_scanner</span>
-                <span className={styles.emptyScannedText}>Nenhum item bipado ainda. Escaneie um código ou use o Catálogo (F2).</span>
               </div>
             )}
 
@@ -160,13 +194,21 @@ export const TerminalScreen: React.FC = () => {
                           <td className={styles.tdQty}>
                             <div className={styles.tdQtyWrapper}>
                               <button
-                                onClick={() => updateItemQuantity(item.id, item.quantity - (item.product.isWeighable ? 0.1 : 1))}
+                                onClick={() => {
+                                  const step = item.product.isWeighable ? 0.1 : 1;
+                                  const newQty = item.quantity - step;
+                                  if (newQty <= 0) {
+                                    requestRemoveItem(item.id, item.product.name);
+                                  } else {
+                                    updateItemQuantity(item.id, newQty);
+                                  }
+                                }}
                                 className={styles.tdQtyBtn}
                               >
                                 -
                               </button>
                               <span className={`${styles.tdQtyTextBase} ${isLast ? styles.tdQtyTextLast : styles.tdQtyTextNormal}`}>
-                                {item.quantity} {item.product.unit}
+                                {item.quantity} {item.product.unit === 'UN' ? '' : item.product.unit}
                               </span>
                               <button
                                 onClick={() => updateItemQuantity(item.id, item.quantity + (item.product.isWeighable ? 0.1 : 1))}
@@ -184,7 +226,7 @@ export const TerminalScreen: React.FC = () => {
                           </td>
                           <td className={styles.tdAction}>
                             <button
-                              onClick={() => removeItem(item.id)}
+                              onClick={() => requestRemoveItem(item.id, item.product.name)}
                               className={styles.tdActionBtn}
                               title="Remover item [F4]"
                             >
@@ -230,21 +272,6 @@ export const TerminalScreen: React.FC = () => {
           {/* RIGHT COLUMN */}
           <div className={styles.rightColumn}>
             
-            <div className={styles.customerHeader}>
-              <div className={styles.customerHeaderLeft}>
-                <span className={styles.customerHeaderIcon}>person</span>
-                <span className={styles.customerHeaderText}>
-                  {customer.cpf ? `CPF: ${customer.cpf}` : customer.name}
-                </span>
-              </div>
-              <button
-                onClick={() => setShowCustomerModal(true)}
-                className={styles.customerHeaderBtn}
-                title="Identificar Cliente [F9]"
-              >
-                <span className={styles.customerHeaderBtnIcon}>edit</span>
-              </button>
-            </div>
 
             <div className={styles.totalsCard}>
               <div className={styles.totalsRow}>
@@ -356,6 +383,56 @@ export const TerminalScreen: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Auth Modal for Item Removal */}
+      {authModal.open && (
+        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200/60 p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center">
+                <span className="material-symbols-outlined text-xl">admin_panel_settings</span>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">Autorização Necessária</h3>
+                <p className="text-xs text-slate-400">Exclusão de item</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-slate-600">
+                Item: <strong className="text-slate-800">{authModal.itemName}</strong>
+              </p>
+              <input
+                type="password"
+                placeholder="Senha do supervisor"
+                value={authModal.authInput}
+                onChange={(e) => setAuthInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmRemoveItem(); }}
+                className="w-full h-11 px-3 bg-slate-50 border border-slate-200/60 text-slate-800 rounded-xl text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-center tracking-widest font-mono-num"
+                autoFocus
+              />
+              {authModal.error && (
+                <span className="text-xs text-red-500 font-medium text-center">Senha incorreta.</span>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 mt-2">
+              <button
+                onClick={cancelRemoveItem}
+                className="px-4 h-10 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 font-medium text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmRemoveItem}
+                className="px-5 h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm transition-colors"
+              >
+                Autorizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

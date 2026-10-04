@@ -18,22 +18,15 @@ const PdvApp: React.FC = () => {
   const { activeTab } = usePdv();
 
   return (
-    <div className="bg-[#f8fafc] min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white">
-      {/* Fixed POS Header & Shortcut Ribbon */}
+    <div className="bg-white min-h-screen flex flex-col justify-between selection:bg-slate-900 selection:text-white">
       <Header />
-
-      {/* Main Workspace (pt-28 clears 64px header + 48px shortcut ribbon) */}
-      <main className="w-full pt-28 flex-1 flex flex-col">
+      <main className="w-full pt-16 flex-1 flex flex-col">
         {activeTab === 'terminal' && <TerminalScreen />}
         {activeTab === 'catalogo' && <CatalogScreen />}
         {activeTab === 'fechamento' && <PaymentScreen />}
         {activeTab === 'caixa' && <CashMovementScreen />}
       </main>
-
-      {/* Persistent POS Hardware & Sefaz Status Footer */}
       <Footer />
-
-      {/* Overlays & Interactive Dialogs */}
       <CpfPromptModal />
       <PaymentModal />
       <ThermalReceiptModal />

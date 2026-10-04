@@ -29,6 +29,18 @@ export const useTerminalService = () => {
   const [barcodeInput, setBarcodeInput] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Auth modal state for delete confirmation
+  const [authModal, setAuthModal] = useState<{
+    open: boolean;
+    itemId: string;
+    itemName: string;
+    authInput: string;
+    error: boolean;
+  }>({ open: false, itemId: '', itemName: '', authInput: '', error: false });
+
+  // The supervisor code (in a real system this would come from the API)
+  const SUPERVISOR_CODE = '1234';
+
   // Focus barcode input automatically
   useEffect(() => {
     inputRef.current?.focus();
@@ -39,12 +51,12 @@ export const useTerminalService = () => {
     const handleCancelLast = () => {
       if (cart.length > 0) {
         const last = cart[cart.length - 1];
-        removeItem(last.id);
+        requestRemoveItem(last.id, last.product.name);
       }
     };
     window.addEventListener('cancel-last-item', handleCancelLast);
     return () => window.removeEventListener('cancel-last-item', handleCancelLast);
-  }, [cart, removeItem]);
+  }, [cart]);
 
   const handleBarcodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +85,32 @@ export const useTerminalService = () => {
     startCheckout(method);
   };
 
+  // Request item removal — opens auth modal
+  const requestRemoveItem = (itemId: string, itemName: string) => {
+    setAuthModal({ open: true, itemId, itemName, authInput: '', error: false });
+  };
+
+  // Update auth input
+  const setAuthInput = (value: string) => {
+    setAuthModal((prev) => ({ ...prev, authInput: value, error: false }));
+  };
+
+  // Confirm removal with auth
+  const confirmRemoveItem = () => {
+    if (authModal.authInput === SUPERVISOR_CODE) {
+      removeItem(authModal.itemId);
+      setAuthModal({ open: false, itemId: '', itemName: '', authInput: '', error: false });
+      showToast('Item removido com autorização');
+    } else {
+      setAuthModal((prev) => ({ ...prev, error: true }));
+    }
+  };
+
+  // Cancel removal
+  const cancelRemoveItem = () => {
+    setAuthModal({ open: false, itemId: '', itemName: '', authInput: '', error: false });
+  };
+
   return {
     cart,
     subtotal,
@@ -83,7 +121,6 @@ export const useTerminalService = () => {
     lastScannedItem,
     quantityMultiplier,
     setQuantityMultiplier,
-    removeItem,
     updateItemQuantity,
     clearCart,
     parkCurrentSale,
@@ -96,6 +133,12 @@ export const useTerminalService = () => {
     setBarcodeInput,
     inputRef,
     handleBarcodeSubmit,
-    handleQuickPayment
+    handleQuickPayment,
+    // Auth modal
+    authModal,
+    requestRemoveItem,
+    setAuthInput,
+    confirmRemoveItem,
+    cancelRemoveItem
   };
 };

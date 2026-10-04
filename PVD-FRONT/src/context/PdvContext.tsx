@@ -26,7 +26,7 @@ interface PdvContextType {
   setScaleWeight: (w: number) => void;
   
   // Actions
-  addItemByCode: (codeOrEan: string, quantity?: number) => boolean;
+  addItemByCode: (codeOrEan: string, quantity?: number) => Promise<boolean>;
   addProductToCart: (product: Product, quantity?: number) => void;
   removeItem: (itemId: string) => void;
   updateItemQuantity: (itemId: string, newQty: number) => void;
@@ -82,8 +82,17 @@ const PdvContext = createContext<PdvContextType | undefined>(undefined);
 export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<'terminal' | 'catalogo' | 'fechamento' | 'caixa'>('terminal');
   
-  // Cart starts empty so cashier starts with clean screen
-  const [cart, setCart] = useState<CartItem[]>([]);
+  // Cart starts with mock data for demonstration
+  const [cart, setCart] = useState<CartItem[]>(
+    INITIAL_CART_ITEMS.map((item, index) => ({
+      id: `cart-mock-${index}`,
+      product: item.product as Product,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      subtotal: Number((item.quantity * item.unitPrice).toFixed(2)),
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false })
+    }))
+  );
 
   const [quantityMultiplier, setQuantityMultiplier] = useState<number>(1);
   const [saleNumber, setSaleNumber] = useState<string>('04928');
@@ -252,7 +261,7 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`1x ${product.name} registrado no caixa`);
   };
 
-  const addItemByCode = (codeOrEan: string, quantity?: number): boolean => {
+  const addItemByCode = async (codeOrEan: string, quantity?: number): Promise<boolean> => {
     const clean = codeOrEan.trim().toLowerCase();
     const found = INITIAL_PRODUCTS.find(
       (p) => p.code.toLowerCase() === clean || p.name.toLowerCase().includes(clean)
@@ -260,7 +269,6 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (found) {
       if (found.isWeighable && (!quantity || quantity === 1)) {
-        // If it's a weighable product and scanned without explicit weight, prompt scale modal
         setWeighingProduct(found);
         setShowScaleModal(true);
       } else {
@@ -268,9 +276,45 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return true;
     } else {
-      playBeep('error');
-      showToast(`Produto não localizado para o código "${codeOrEan}"`);
-      return false;
+      // Tenta buscar o produto real na API pública (OpenFoodFacts)
+      try {
+        const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${clean}.json`);
+        const data = await res.json();
+        
+        if (data && data.status === 1 && data.product) {
+          const fetchedName = data.product.product_name || data.product.generic_name || 'Produto Importado';
+          const fetchedImage = data.product.image_front_url || data.product.image_url || 'https://cdn-icons-png.flaticon.com/512/8630/8630691.png';
+          
+          const dynamicProduct: Product = {
+            id: 'dyn-' + Date.now().toString(),
+            code: codeOrEan,
+            name: fetchedName.toUpperCase(),
+            price: 9.99,
+            image: fetchedImage,
+            unit: 'UN'
+          };
+          
+          addProductToCart(dynamicProduct, quantity || 1);
+          showToast(`${dynamicProduct.name} (API de Alimentos) registrado!`);
+          return true;
+        }
+      } catch (e) {
+        console.error("Falha ao buscar na OpenFoodFacts", e);
+      }
+
+      // PRODUTO NÃO ENCONTRADO EM LUGAR NENHUM (Fallback Genérico)
+      const unknownProduct: Product = {
+        id: 'unk-' + Date.now().toString(),
+        code: codeOrEan,
+        name: 'Item Avulso (Não Identificado)',
+        price: 9.99,
+        image: 'https://cdn-icons-png.flaticon.com/512/8630/8630691.png',
+        unit: 'UN'
+      };
+      
+      addProductToCart(unknownProduct, quantity || 1);
+      showToast(`Código ${codeOrEan} não cadastrado. Inserido como Item Avulso.`);
+      return true;
     }
   };
 

@@ -61,7 +61,8 @@ export const useCatalogService = () => {
     } else {
       addProductToCart(product, 1);
     }
-    searchInputRef.current?.focus();
+    // Mantém o foco no campo de busca para o usuário continuar digitando, mas previne que a tela pule para o topo
+    searchInputRef.current?.focus({ preventScroll: true });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

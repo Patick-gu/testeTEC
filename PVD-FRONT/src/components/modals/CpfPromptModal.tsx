@@ -7,7 +7,6 @@ export const CpfPromptModal: React.FC = () => {
     setShowCpfPromptModal,
     proceedToPayment,
     customer,
-    total
   } = usePdv();
 
   const [cpfInput, setCpfInput] = useState<string>('');
@@ -50,24 +49,24 @@ export const CpfPromptModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200/60 p-6 flex flex-col gap-5">
         
         {/* Header */}
-        <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-emerald-400 text-2xl">
-              badge
-            </span>
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center">
+              <span className="material-symbols-outlined text-xl">badge</span>
+            </div>
             <div>
-              <h3 className="text-base font-bold tracking-tight">CPF na Nota Fiscal?</h3>
-              <p className="text-xs text-slate-400">Identificação para NFC-e e programas estaduais</p>
+              <h3 className="text-base font-semibold text-slate-800">CPF na Nota?</h3>
+              <p className="text-xs text-slate-400">Opcional para a NFC-e</p>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setShowCpfPromptModal(false)}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
             title="Cancelar [ESC]"
           >
             <span className="material-symbols-outlined text-lg">close</span>
@@ -75,27 +74,13 @@ export const CpfPromptModal: React.FC = () => {
         </div>
 
         {/* Content & Form */}
-        <form onSubmit={handleConfirm} className="p-6 flex flex-col gap-5">
-          <div className="flex flex-col items-center text-center gap-1.5">
-            <span className="text-sm font-semibold text-slate-800">
-              Deseja informar o CPF na nota fiscal?
-            </span>
-            <p className="text-xs text-slate-500 max-w-sm">
-              Se o cliente <strong className="text-slate-700">não quiser CPF</strong>, basta pressionar{' '}
-              <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 font-mono text-[11px] font-bold text-slate-800">
-                ENTER
-              </kbd>{' '}
-              para avançar diretamente para o pagamento.
-            </p>
-          </div>
-
-          {/* Large Focused CPF Input */}
+        <form onSubmit={handleConfirm} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-mono-num font-bold text-slate-700 uppercase tracking-wider text-center">
-              CPF DO CONSUMIDOR (OPCIONAL)
+            <label className="text-xs text-slate-400 uppercase font-medium">
+              Número do CPF
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-4 material-symbols-outlined text-slate-400 text-xl pointer-events-none">
+              <span className="absolute left-3.5 material-symbols-outlined text-slate-300 text-lg pointer-events-none">
                 person
               </span>
               <input
@@ -106,60 +91,50 @@ export const CpfPromptModal: React.FC = () => {
                 value={cpfInput}
                 onChange={handleChange}
                 placeholder="000.000.000-00"
-                className="w-full h-14 pl-12 pr-12 bg-slate-50 border-2 border-slate-300 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-100 rounded-xl text-center font-mono-num text-2xl font-bold text-slate-900 tracking-wider outline-none transition-all"
+                className="w-full h-12 pl-10 pr-10 bg-slate-50 border border-slate-200/60 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 rounded-xl font-mono-num text-lg font-semibold text-slate-800 tracking-wide outline-none transition-all"
               />
               {cpfInput && (
                 <button
                   type="button"
                   onClick={() => setCpfInput('')}
-                  className="absolute right-3.5 text-slate-400 hover:text-slate-600 p-1"
+                  className="absolute right-3 text-slate-300 hover:text-slate-500 p-1"
                   title="Limpar CPF"
                 >
-                  <span className="material-symbols-outlined text-lg">close</span>
+                  <span className="material-symbols-outlined text-base">close</span>
                 </button>
               )}
             </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Deixe em branco e aperte ENTER para avançar sem informar o CPF.
+            </p>
           </div>
 
           {/* Action Buttons */}
           <div className="flex flex-col gap-2 pt-2 border-t border-slate-100">
             <button
               type="submit"
-              className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition-all flex items-center justify-between px-5 cursor-pointer"
+              className="w-full h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm transition-all flex items-center justify-between px-5"
             >
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-lg">
                   {cpfInput.trim() ? 'check_circle' : 'arrow_forward'}
                 </span>
                 <span>
-                  {cpfInput.trim() ? 'Confirmar CPF e Avançar' : 'Avançar sem CPF'}
+                  {cpfInput.trim() ? 'Confirmar e Avançar' : 'Avançar sem CPF'}
                 </span>
               </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-700 text-white font-mono-num text-xs font-bold">
+              <span className="px-2 py-0.5 rounded-md bg-white/10 text-white/80 font-mono-num text-xs hidden sm:block">
                 ENTER
               </span>
             </button>
 
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setShowCpfPromptModal(false)}
-                className="px-4 h-10 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <span>Voltar</span>
-                <span className="text-[10px] text-slate-500 font-mono">[ESC]</span>
-              </button>
-
-              {cpfInput.trim() && (
-                <button
-                  type="button"
-                  onClick={handleSkip}
-                  className="px-4 h-10 rounded-lg text-slate-600 hover:text-slate-900 text-xs font-medium transition-colors cursor-pointer"
-                >
-                  Não informar CPF
-                </button>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowCpfPromptModal(false)}
+              className="w-full h-10 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-50 text-slate-500 text-xs font-medium transition-colors"
+            >
+              Voltar (ESC)
+            </button>
           </div>
         </form>
 

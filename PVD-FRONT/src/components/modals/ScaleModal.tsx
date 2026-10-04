@@ -48,16 +48,17 @@ export const ScaleModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 max-w-md w-full flex flex-col animate-in fade-in duration-200">
         
-        {/* Scale Header */}
-        <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="material-symbols-outlined text-emerald-400 text-xl">scale</span>
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+              <span className="material-symbols-outlined text-xl">scale</span>
+            </div>
             <div>
-              <div className="text-sm font-bold tracking-tight">Balança Toledo Prix 3 Integrada</div>
-              <div className="text-[10px] font-mono-num text-emerald-300">COMUNICAÇÃO SERIAL RS232: ATIVA</div>
+              <h2 className="text-base font-semibold text-slate-800">Balança Integrada</h2>
+              <p className="text-xs text-slate-400">Comunicação Serial Ativa</p>
             </div>
           </div>
           <button
@@ -65,117 +66,101 @@ export const ScaleModal: React.FC = () => {
               setShowScaleModal(false);
               setWeighingProduct(null);
             }}
-            className="text-slate-400 hover:text-white"
+            className="text-slate-400 hover:text-slate-600 transition-colors"
           >
-            <span className="material-symbols-outlined text-lg">close</span>
+            <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
-        {/* Product Being Weighed */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-3">
-          <div className="w-12 h-12 rounded bg-white border border-slate-200 overflow-hidden shrink-0">
-            {weighingProduct?.imageUrl && (
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-lg bg-white border border-slate-200/60 overflow-hidden shrink-0 flex items-center justify-center text-slate-400">
+            {weighingProduct?.imageUrl ? (
               <img
                 src={weighingProduct.imageUrl}
                 alt={productName}
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
+            ) : (
+              <span className="material-symbols-outlined">image</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <span className="text-[10px] font-mono-num uppercase font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-              PRODUTO PESÁVEL
-            </span>
-            <div className="text-sm font-bold text-slate-900 truncate mt-0.5">
+            <div className="text-sm font-semibold text-slate-800 truncate mb-1">
               {productName}
             </div>
-            <div className="text-xs font-mono-num text-slate-600">
-              Preço por KG: <strong className="text-emerald-700 font-bold">R$ {productPrice.toFixed(2).replace('.', ',')}</strong>
+            <div className="text-xs text-slate-500">
+              Preço por KG: <strong className="text-slate-800">R$ {productPrice.toFixed(2).replace('.', ',')}</strong>
             </div>
           </div>
         </div>
 
-        {/* Big LED Weight Display */}
-        <form onSubmit={handleConfirmWeighing} className="p-5 flex flex-col gap-4">
-          <div className="bg-[#0f172a] rounded-xl p-4 text-center border-4 border-slate-800 flex flex-col items-center justify-center">
-            <div className="flex items-center justify-between w-full text-slate-400 text-[10px] font-mono-num mb-1">
-              <span className="text-emerald-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ESTÁVEL
+        <form onSubmit={handleConfirmWeighing} className="flex flex-col gap-4">
+          <div className="bg-slate-50 rounded-xl p-6 text-center border border-slate-200/60 flex flex-col items-center justify-center">
+            <div className="flex items-center justify-between w-full text-slate-400 text-[10px] font-mono-num mb-2">
+              <span className="text-slate-500 flex items-center gap-1 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-slate-400"></span> ESTÁVEL
               </span>
-              <span>CAPACIDADE: 15.000 KG</span>
+              <span>MAX: 15.000 KG</span>
             </div>
 
-            <div className="flex items-baseline justify-center gap-2">
+            <div className="flex items-baseline justify-center gap-2 mb-2">
               <input
                 autoFocus
                 type="text"
                 value={inputWeight}
                 onChange={(e) => setInputWeight(e.target.value)}
                 placeholder="0,000"
-                className="w-48 bg-transparent text-center text-4xl sm:text-5xl font-mono-num font-extrabold text-emerald-400 focus:outline-none tracking-wider"
+                className="w-48 bg-transparent text-center text-4xl sm:text-5xl font-mono-num font-semibold text-slate-800 focus:outline-none tracking-tight"
               />
-              <span className="text-2xl font-bold font-mono-num text-emerald-600">kg</span>
+              <span className="text-xl font-medium font-mono-num text-slate-500">kg</span>
             </div>
 
-            <div className="text-xs font-mono-num text-slate-400 mt-1">
-              Subtotal: <strong className="text-white font-bold text-sm">R$ {calculatedTotal.toFixed(2).replace('.', ',')}</strong>
+            <div className="text-sm text-slate-500 mt-2 border-t border-slate-200/60 pt-3 w-full">
+              Subtotal: <strong className="text-slate-800 font-semibold text-lg">R$ {calculatedTotal.toFixed(2).replace('.', ',')}</strong>
             </div>
           </div>
 
-          {/* Quick preset weight buttons & Tara */}
-          <div className="flex flex-wrap items-center justify-between gap-1.5">
-            <span className="text-xs font-mono-num text-slate-500 font-bold">Simular Peso:</span>
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => handlePresetWeight(0.250)}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-mono-num font-bold"
-              >
-                0,250 kg
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePresetWeight(0.450)}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-mono-num font-bold"
-              >
-                0,450 kg
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePresetWeight(1.200)}
-                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-mono-num font-bold"
-              >
-                1,200 kg
-              </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-slate-500 font-medium">Simular Peso:</span>
+            <div className="flex gap-2">
+              {[0.250, 0.450, 1.200].map(w => (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => handlePresetWeight(w)}
+                  className="px-3 py-1.5 rounded-lg bg-white border border-slate-200/60 hover:bg-slate-50 text-slate-600 text-xs font-medium transition-colors"
+                >
+                  {w.toFixed(3).replace('.', ',')}
+                </button>
+              ))}
               <button
                 type="button"
                 onClick={handleTare}
-                className="px-2.5 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-mono-num font-bold"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
               >
                 TARAR
               </button>
             </div>
           </div>
 
-          {/* Bottom Actions */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-2 pt-4 mt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => {
                 setShowScaleModal(false);
                 setWeighingProduct(null);
               }}
-              className="px-4 h-10 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold text-xs"
+              className="px-4 h-11 bg-white border border-slate-200/60 hover:bg-slate-50 text-slate-500 rounded-xl font-medium text-sm transition-colors"
             >
               Cancelar [ESC]
             </button>
             <button
               type="submit"
-              className="px-5 h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-1.5"
+              className="px-6 h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold text-sm transition-colors flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-base">check</span>
-              <span>Inserir no Caixa [ENTER]</span>
+              Inserir no Caixa [ENTER]
             </button>
           </div>
         </form>
