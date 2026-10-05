@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "/home/patrick/.config/herd-lite/bin/php",
+            "args": [
+                "/home/patrick/Documentos/teste-pratico-pdv/PVD-Back/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}

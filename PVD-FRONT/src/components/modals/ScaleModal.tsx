@@ -74,16 +74,7 @@ export const ScaleModal: React.FC = () => {
 
         <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-lg bg-white border border-slate-200/60 overflow-hidden shrink-0 flex items-center justify-center text-slate-400">
-            {weighingProduct?.imageUrl ? (
-              <img
-                src={weighingProduct.imageUrl}
-                alt={productName}
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <span className="material-symbols-outlined">image</span>
-            )}
+            <span className="material-symbols-outlined">image</span>
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-slate-800 truncate mb-1">

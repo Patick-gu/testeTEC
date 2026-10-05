@@ -42,7 +42,7 @@ download_with_spinner() {
   local curl_pid=$!
 
   # Show the spinner while curl is running
-  wait $curl_pid
+  show_spinner $curl_pid
 
   # Wait for curl to complete
   wait $curl_pid

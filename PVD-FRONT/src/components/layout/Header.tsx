@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { usePdv } from '../../context/PdvContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const Header: React.FC = () => {
   const {
@@ -9,6 +10,7 @@ export const Header: React.FC = () => {
     cart,
     openPaymentModal,
   } = usePdv();
+  const { user, logout } = useAuth();
 
   const [timeStr, setTimeStr] = useState<string>('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,11 +31,14 @@ export const Header: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const tabs = [
-    { id: 'terminal' as const, label: 'Terminal' },
-    { id: 'catalogo' as const, label: 'Catálogo' },
-    { id: 'caixa' as const, label: 'Caixa' },
+  const allTabs = [
+    { id: 'terminal' as const, label: 'Frente de Caixa', roles: ['user'] },
+    { id: 'catalogo' as const, label: 'Catálogo de Produtos', roles: ['admin'] },
+    { id: 'equipe' as const, label: 'Gestão de Equipe', roles: ['admin'] },
+    { id: 'caixa' as const, label: 'Fluxo Financeiro', roles: ['admin'] },
   ];
+
+  const tabs = allTabs.filter(tab => tab.roles.includes(user?.role || ''));
 
   return (
     <header className="fixed top-0 left-0 w-full z-40 bg-white/95 backdrop-blur-sm border-b border-slate-200/60">
@@ -41,12 +46,12 @@ export const Header: React.FC = () => {
 
         {/* Logo + Status */}
         <div className="flex items-center gap-3">
-          <span
-            className="text-lg font-bold tracking-tight text-slate-900 cursor-pointer"
+          <div 
+            className="flex items-center justify-center p-1.5 bg-slate-100 rounded-lg shadow-sm border border-slate-200 cursor-pointer transition-transform hover:scale-105"
             onClick={() => setActiveTab('terminal')}
           >
-            Nexus <span className="font-light text-slate-400">PDV</span>
-          </span>
+            <img src="/Kaster.png" alt="Kaster Logo" className="h-6 w-auto object-contain" />
+          </div>
           <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[11px] font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
             Caixa #01
@@ -96,6 +101,13 @@ export const Header: React.FC = () => {
             >
               F10 Fechar
             </button>
+            <button
+              onClick={logout}
+              className="px-3 py-1.5 rounded-md text-xs font-semibold bg-red-600 text-white hover:bg-red-500 transition-colors ml-2"
+              title="Sair"
+            >
+              Sair
+            </button>
           </div>
 
           {/* Time */}
@@ -137,6 +149,12 @@ export const Header: React.FC = () => {
               className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-slate-900 text-white"
             >
               F10 Fechar Venda
+            </button>
+            <button
+              onClick={() => { logout(); setMenuOpen(false); }}
+              className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-red-600 text-white"
+            >
+              Sair
             </button>
           </div>
         </div>

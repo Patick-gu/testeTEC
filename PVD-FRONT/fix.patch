@@ -1,0 +1,10 @@
+--- src/pages/Catalog/index.tsx
++++ src/pages/Catalog/index.tsx
+@@ -265,5 +265,8 @@
+             )}
++          </div>
++        </div>
+       </div>
+     </div>
+   );
+ };

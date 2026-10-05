@@ -2,7 +2,7 @@ import React from 'react';
 import { usePdv } from '../../context/PdvContext';
 
 export const ThermalReceiptModal: React.FC = () => {
-  const { recentReceipt, showReceiptModal, setShowReceiptModal } = usePdv();
+  const { recentReceipt, showReceiptModal, setShowReceiptModal, showToast } = usePdv();
 
   if (!showReceiptModal || !recentReceipt) return null;
 
@@ -121,7 +121,7 @@ export const ThermalReceiptModal: React.FC = () => {
 
           <button
             onClick={() => {
-              alert('Comprovante enviado com sucesso para o WhatsApp informado.');
+              showToast('Comprovante enviado com sucesso para o WhatsApp informado.');
               setShowReceiptModal(false);
             }}
             className="flex-1 h-11 bg-white border border-slate-200/60 hover:bg-slate-50 text-slate-500 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-2"

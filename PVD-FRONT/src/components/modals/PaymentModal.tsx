@@ -20,8 +20,6 @@ export const PaymentModal: React.FC = () => {
   const [activeMethod, setActiveMethod] = useState<PaymentMethodType>(selectedPaymentMethod);
   const [receivedCashStr, setReceivedCashStr] = useState<string>('0,00');
   const [selectedInstallment, setSelectedInstallment] = useState<number>(1);
-  const [transmitNfce, setTransmitNfce] = useState<boolean>(true);
-  const [printCoupon, setPrintCoupon] = useState<boolean>(true);
   const [cpfNumber, setCpfNumber] = useState<string>(customer.cpf || '');
 
   // PIX states
@@ -63,6 +61,29 @@ export const PaymentModal: React.FC = () => {
       return () => clearInterval(t);
     }
   }, [showPaymentModal, activeMethod, pixPaid, pixTimer]);
+
+  // Keyboard navigation for payment methods
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!showPaymentModal) return;
+      
+      const methods: PaymentMethodType[] = ['cash', 'pix', 'debit', 'credit', 'split'];
+      const currentIndex = methods.indexOf(activeMethod);
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const nextIndex = (currentIndex + 1) % methods.length;
+        setActiveMethod(methods[nextIndex]);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const prevIndex = (currentIndex - 1 + methods.length) % methods.length;
+        setActiveMethod(methods[prevIndex]);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showPaymentModal, activeMethod]);
 
   if (!showPaymentModal) return null;
 
@@ -144,7 +165,13 @@ export const PaymentModal: React.FC = () => {
       e.preventDefault();
       handleExactCash();
     } else if (e.key === 'Enter') {
+      e.preventDefault();
       handleCashBlur();
+      if (parseBRLToNumber(receivedCashStr) < total) {
+        showToast('Valor recebido é menor que o total da compra!');
+      } else {
+        handleConfirmFinalPayment();
+      }
     }
   };
 
@@ -196,6 +223,11 @@ export const PaymentModal: React.FC = () => {
   };
 
   const handleConfirmFinalPayment = () => {
+    if (activeMethod === 'cash' && receivedCash < total) {
+      showToast('Valor recebido é menor que o total da compra!');
+      return;
+    }
+    
     if ((activeMethod === 'debit' || activeMethod === 'credit') && cardStatus !== 'approved') {
       handleSimulateCard();
       setTimeout(() => {
@@ -242,7 +274,15 @@ export const PaymentModal: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        <div className="flex flex-col gap-1 mb-6">
+          <div className="flex justify-between items-end mb-1">
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Forma de Pagamento</span>
+            <span className="text-[10px] text-slate-400 font-medium bg-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1">
+              <span className="material-symbols-outlined text-[12px]">swap_vert</span>
+              Setas [↓] [↑] p/ Navegar
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
           {[
             { id: 'cash', label: 'Dinheiro', icon: 'payments' },
             { id: 'pix', label: 'PIX', icon: 'qr_code_2' },
@@ -264,6 +304,7 @@ export const PaymentModal: React.FC = () => {
               {item.label}
             </button>
           ))}
+          </div>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center min-h-[300px]">
@@ -277,22 +318,15 @@ export const PaymentModal: React.FC = () => {
                       <span className="font-semibold text-sm">PIX Confirmado!</span>
                    </div>
                 ) : (
-                   <span className="material-symbols-outlined text-4xl">qr_code_2</span>
+                   <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://google.com" alt="QR Code PIX Exemplo" className="w-40 h-40 object-contain rounded-lg" />
                 )}
               </div>
-              <p className="text-xs text-slate-500 mb-4">Expira em {formatTimer(pixTimer)}</p>
+              
+              <div className="flex flex-col items-center max-w-xs text-center mb-4">
+                <p className="text-xs text-slate-500">Expira em {formatTimer(pixTimer)}</p>
+              </div>
               
               <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText('00020126580014br.gov.bcb.pix0136e4b88921-992a-4f40-b198-100234520400005303986');
-                    showToast('Código copiado!');
-                  }}
-                  className="px-4 py-2 bg-white border border-slate-200/60 hover:bg-slate-50 text-slate-500 rounded-xl font-medium text-sm transition-colors"
-                >
-                  Copiar Código
-                </button>
                 {!pixPaid && (
                   <button
                     type="button"
@@ -350,9 +384,16 @@ export const PaymentModal: React.FC = () => {
 
           {activeMethod === 'cash' && (
             <div className="w-full max-w-sm flex flex-col items-center justify-center animate-in fade-in duration-200">
-              <div className="w-full mb-6">
-                <label className="text-xs font-semibold text-slate-800 mb-2 block text-center">Valor Recebido (R$)</label>
-                <div className="relative">
+              
+              <div className="w-full mb-8 flex flex-col items-center">
+                <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Total a ser cobrado</span>
+                <span className="text-4xl font-extrabold text-slate-900">R$ {total.toFixed(2).replace('.', ',')}</span>
+              </div>
+
+              <div className="w-full grid grid-cols-2 gap-4 mb-4">
+                {/* Valor Recebido */}
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-slate-800 mb-2 block text-center">Valor Recebido</label>
                   <input
                     autoFocus
                     type="text"
@@ -364,17 +405,20 @@ export const PaymentModal: React.FC = () => {
                     onFocus={(e) => { e.target.select(); setIsCleanInput(true); }}
                     className="w-full h-16 text-center text-3xl font-semibold bg-slate-50 border border-slate-200/60 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-xl transition-all outline-none"
                   />
+                  <p className="text-[10px] text-slate-400 text-center mt-2">Pressione [F5] para valor exato</p>
                 </div>
-                <p className="text-xs text-slate-400 text-center mt-2">Pressione [F5] para valor exato</p>
-              </div>
 
-              <div className={`w-full p-4 rounded-xl border flex items-center justify-between ${
-                cashTroco > 0 ? 'bg-slate-50 border-slate-200/60' : 'bg-slate-50 border-slate-200/60'
-              }`}>
-                <span className="text-sm font-semibold text-slate-600">Troco:</span>
-                <span className={`text-xl font-bold ${cashTroco > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
-                  R$ {formatBRL(cashTroco)}
-                </span>
+                {/* Troco */}
+                <div className="flex flex-col">
+                  <label className="text-xs font-semibold text-slate-800 mb-2 block text-center">Troco</label>
+                  <div className={`w-full h-16 rounded-xl border flex items-center justify-center ${
+                    cashTroco > 0 ? 'bg-white border-blue-200 shadow-sm' : 'bg-slate-50 border-slate-200/60'
+                  }`}>
+                    <span className={`text-3xl font-bold tracking-tight ${cashTroco > 0 ? 'text-blue-600' : 'text-slate-400'}`}>
+                      R$ {formatBRL(cashTroco)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -442,26 +486,8 @@ export const PaymentModal: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-4 mt-6 pt-5 border-t border-slate-100">
-          <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={transmitNfce}
-                onChange={(e) => setTransmitNfce(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-slate-300"
-              />
-              <span className="text-sm font-medium text-slate-700">Transmitir NFC-e</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={printCoupon}
-                onChange={(e) => setPrintCoupon(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-slate-300"
-              />
-              <span className="text-sm font-medium text-slate-700">Imprimir Cupom [F12]</span>
-            </label>
-            <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center justify-end">
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-slate-500">CPF:</span>
               <input
                 type="text"

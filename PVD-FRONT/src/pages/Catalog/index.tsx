@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCatalogService } from './service';
 import { styles } from './style';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 export const CatalogScreen: React.FC = () => {
   const {
@@ -19,7 +20,39 @@ export const CatalogScreen: React.FC = () => {
     handleKeyDown,
     openPaymentModal,
     setActiveTab,
-    setShowScaleModal
+    setShowScaleModal,
+    isAdmin,
+    loading,
+    error,
+    showImportModal,
+    setShowImportModal,
+    importFile,
+    setImportFile,
+    importLoading,
+    handleImportSubmit,
+    handleDownloadModel,
+    showCategoryModal,
+    setShowCategoryModal,
+    newCategoryName,
+    setNewCategoryName,
+    categoryLoading,
+    handleCreateCategory,
+    dbCategories,
+    itemsToDelete,
+    setItemsToDelete,
+    selectedProducts,
+    toggleProductSelection,
+    toggleSelectAll,
+    confirmDelete,
+    openEditModal,
+    showEditModal,
+    setShowEditModal,
+    editForm,
+    setEditForm,
+    editLoading,
+    handleSaveEdit,
+    showOnlyCritical,
+    setShowOnlyCritical
   } = useCatalogService();
 
   return (
@@ -41,19 +74,30 @@ export const CatalogScreen: React.FC = () => {
                   Modo Operacional Ativo
                 </span>
               </div>
-              <div className={styles.searchShortcuts}>
-                <span>[ESC] Voltar ao Caixa</span>
-                <span>•</span>
-                <span>[↑↓] Navegar</span>
-                <span>•</span>
-                <span>[ENTER] Inserir</span>
+              <div className="flex items-center gap-3">
+                {isAdmin && (
+                  <button 
+                    onClick={() => setShowImportModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">upload_file</span>
+                    Importar XLSX
+                  </button>
+                )}
+                <div className={styles.searchShortcuts}>
+                  <span>[ESC] Voltar ao Caixa</span>
+                  <span>•</span>
+                  <span>[↑↓] Navegar</span>
+                  <span>•</span>
+                  <span>[ENTER] Inserir</span>
+                </div>
               </div>
             </div>
 
             <div className={styles.searchInputWrapper}>
               <div className={styles.searchIconWrapper}>
                 <span className={styles.searchIcon}>
-                  barcode_scanner
+                  search
                 </span>
               </div>
 
@@ -96,10 +140,19 @@ export const CatalogScreen: React.FC = () => {
               </span>
             </div>
 
-            <div className={styles.metricCard}>
-              <span className={styles.metricTitle}>
-                Estoque Crítico
-              </span>
+            <button 
+              type="button"
+              onClick={() => setShowOnlyCritical(!showOnlyCritical)}
+              className={`${styles.metricCard} cursor-pointer hover:ring-2 hover:ring-amber-400 transition-all text-left ${showOnlyCritical ? 'ring-2 ring-amber-500 bg-amber-50/50' : ''}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={styles.metricTitle}>
+                  Estoque Crítico
+                </span>
+                {showOnlyCritical && (
+                  <span className="material-symbols-outlined text-amber-500 text-sm">filter_alt</span>
+                )}
+              </div>
               <div className={styles.metricValueWrapper}>
                 <span className="text-xl font-bold text-amber-700 font-mono-num">
                   {criticalStockCount}
@@ -110,7 +163,7 @@ export const CatalogScreen: React.FC = () => {
                 <span className={`${styles.metricStatusIcon} text-amber-600`}>warning</span>
                 Requer Reposição
               </span>
-            </div>
+            </button>
 
             <div className={styles.metricCard}>
               <span className={styles.metricTitle}>
@@ -155,43 +208,54 @@ export const CatalogScreen: React.FC = () => {
               </button>
             );
           })}
+          
+          {isAdmin && (
+            <button
+              onClick={() => setShowCategoryModal(true)}
+              className="px-3.5 py-2 rounded-xl text-xs font-medium flex items-center gap-2 transition-all shrink-0 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 ml-auto"
+            >
+              <span className="material-symbols-outlined text-base">add</span>
+              <span>Nova Categoria</span>
+            </button>
+          )}
         </div>
 
         {/* Catalog Grid & Right Mini-Cart Sidebar */}
         <div className={styles.mainLayout}>
           
-          {/* Products Grid (9 cols) */}
           <div className={styles.productsGrid}>
+            {isAdmin && filteredProducts.length > 0 && (
+              <div className="flex items-center justify-between px-2 mb-2">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <input 
+                    type="checkbox"
+                    checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                  />
+                  <span className="text-sm font-semibold text-slate-700 group-hover:text-slate-900 transition-colors">
+                    Selecionar Todos ({filteredProducts.length} produtos listados)
+                  </span>
+                </label>
+              </div>
+            )}
+            
             {filteredProducts.map((prod) => (
               <div
                 key={prod.id}
-                onClick={() => handleCardClick(prod)}
+                
                 className={styles.productCard}
               >
-                <div>
-                  {/* Image Container with Badges */}
-                  <div className={styles.productImageWrapper}>
-                    <img
-                      src={prod.imageUrl}
-                      alt={prod.name}
-                      className={styles.productImage}
-                      referrerPolicy="no-referrer"
+                 <div className="flex items-center gap-4 flex-1 min-w-0">
+                  {isAdmin && (
+                    <input 
+                      type="checkbox"
+                      checked={selectedProducts.includes(prod.id)}
+                      onChange={() => toggleProductSelection(prod.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
                     />
-
-                    <span className={styles.productCodeBadge}>
-                      #{prod.code}
-                    </span>
-
-                    <span
-                      className={`${styles.productCategoryBadgeBase} ${
-                        prod.isWeighable || prod.lowStock
-                          ? styles.productCategoryBadgeAmber
-                          : styles.productCategoryBadgeBlue
-                      }`}
-                    >
-                      {prod.categoryLabel}
-                    </span>
-                  </div>
+                  )}
 
                   {/* Title & Metadata */}
                   <div className={styles.productInfoWrapper}>
@@ -217,6 +281,11 @@ export const CatalogScreen: React.FC = () => {
                           {prod.price.toFixed(2).replace('.', ',')}
                         </span>
                       </div>
+                      {!!prod.wholesale_min_quantity && !!prod.wholesale_price && (
+                        <div className="mt-1 text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                          Atacado: R$ {prod.wholesale_price.toFixed(2).replace('.', ',')} (a partir de {prod.wholesale_min_quantity}un)
+                        </div>
+                      )}
                     </div>
 
                     <div className={styles.productStockCol}>
@@ -233,24 +302,33 @@ export const CatalogScreen: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCardClick(prod);
-                    }}
-                    className={styles.productActionButton}
-                  >
-                    <span className={styles.productActionIcon}>
-                      {prod.isWeighable ? 'scale' : 'add_shopping_cart'}
-                    </span>
-                    <span>
-                      {prod.isWeighable ? '+ Pesar & Inserir' : '+ Inserir no Caixa'}
-                    </span>
-                    <span className={styles.productActionShortcut}>
-                      [ENTER]
-                    </span>
-                  </button>
+                  {isAdmin && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditModal(prod);
+                        }}
+                        className={styles.editButton}
+                        title="Editar Produto"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setItemsToDelete([prod.id]);
+                        }}
+                        className={styles.deleteButton}
+                        title="Excluir Produto"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -264,141 +342,238 @@ export const CatalogScreen: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Right Live Mini-Cart & Toledo Scale Widget (3 cols) */}
-          <div className={styles.sidebarLayout}>
-            
-            {/* Active Sale Summary Card */}
-            <div className={styles.activeSaleCard}>
-              <div className={styles.activeSaleHeader}>
-                <div className={styles.activeSaleTitleWrapper}>
-                  <span className={styles.activeSaleIcon}>
-                    point_of_sale
-                  </span>
-                  <span className={styles.activeSaleTitle}>
-                    VENDA ATIVA #04928
-                  </span>
-                </div>
-                <span className={styles.activeSaleStatus}>
-                  ABERTA
-                </span>
-              </div>
-
-              {/* Total Display */}
-              <div className={styles.totalDisplay}>
-                <span className={styles.totalDisplayLabel}>
-                  Total do Cupom Fiscal
-                </span>
-                <div className={styles.totalDisplayValueWrapper}>
-                  <span className={styles.totalDisplayCurrency}>R$</span>
-                  <span className={styles.totalDisplayValue}>
-                    {total.toFixed(2).replace('.', ',')}
-                  </span>
-                </div>
-                <div className={styles.totalDisplayFooter}>
-                  <span>
-                    Itens adicionados: <strong className="text-slate-900">{cart.length}</strong>
-                  </span>
-                  <span>Desc.: R$ 0,00</span>
-                </div>
-              </div>
-
-              {/* Recently added items list */}
-              <div>
-                <div className={styles.recentItemsHeader}>
-                  <span className={styles.recentItemsTitle}>
-                    Últimos Lançamentos
-                  </span>
-                  <span className={styles.recentItemsStatus}>
-                    Ao Vivo
-                  </span>
-                </div>
-
-                <div className={styles.recentItemsList}>
-                  {cart.slice().reverse().map((item) => (
-                    <div
-                      key={item.id}
-                      className={styles.recentItemCard}
-                    >
-                      <div className={styles.recentItemInfo}>
-                        <div className={styles.recentItemName}>
-                          {item.product.name}
-                        </div>
-                        <div className={styles.recentItemDetails}>
-                          {item.quantity} {item.product.unit} × R$ {item.unitPrice.toFixed(2).replace('.', ',')}
-                        </div>
-                      </div>
-                      <span className={styles.recentItemPrice}>
-                        R$ {item.subtotal.toFixed(2).replace('.', ',')}
-                      </span>
-                    </div>
-                  ))}
-
-                  {cart.length === 0 && (
-                    <div className={styles.emptyCartState}>
-                      Cesto de compras vazio
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className={styles.saleActions}>
-                <button
-                  onClick={() => {
-                    if (cart.length > 0) {
-                      openPaymentModal('cash');
-                    }
-                  }}
-                  disabled={cart.length === 0}
-                  className={styles.finishSaleBtn}
-                >
-                  <span className={styles.finishSaleIcon}>payments</span>
-                  <span>Finalizar Venda [F10]</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('terminal')}
-                  className={styles.returnBtn}
-                >
-                  <span className={styles.returnIcon}>arrow_back</span>
-                  <span>Retornar ao Terminal Direto [ESC]</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Toledo Scale Widget */}
-            <div
-              onClick={() => setShowScaleModal(true)}
-              className={styles.scaleWidget}
-              title="Clique para configurar pesagem na balança"
-            >
-              <div className={styles.scaleWidgetHeader}>
-                <span className={styles.scaleWidgetTitleWrapper}>
-                  <span className={styles.scaleWidgetIcon}>scale</span>
-                  Balança Toledo Prix 3
-                </span>
-                <span className={styles.scaleWidgetStatus}>
-                  ESTÁVEL
-                </span>
-              </div>
-
-              <div className={styles.scaleWidgetDisplay}>
-                <span className={styles.scaleWidgetLabel}>
-                  PESO ATUAL:
-                </span>
-                <span className={styles.scaleWidgetValue}>
-                  {scaleWeight.toFixed(3).replace('.', ',')}{' '}
-                  <span className={styles.scaleWidgetUnit}>kg</span>
-                </span>
-              </div>
-            </div>
-
-          </div>
-
         </div>
-
       </div>
+
+      {showImportModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Importar Produtos (XLSX)</h3>
+              <button onClick={() => setShowImportModal(false)} className={styles.modalCloseBtn}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <form onSubmit={handleImportSubmit} className={styles.modalBody}>
+              <div className="bg-blue-50 border border-blue-100 text-blue-700 p-3 rounded-xl text-sm leading-relaxed">
+                <span className="material-symbols-outlined text-[18px] float-left mr-2 mt-0.5">info</span>
+                Importe seu catálogo usando nossa planilha padrão. Se você não tem o modelo, pode baixá-lo clicando no link abaixo.
+              </div>
+
+              <div className={styles.modalInputWrapper}>
+                <label className={styles.modalLabel}>Selecione o arquivo (.xlsx)</label>
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls"
+                  onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                  className={styles.modalFileInput}
+                  required
+                />
+              </div>
+
+              <div onClick={handleDownloadModel} className={styles.linkDownload}>
+                <span className="material-symbols-outlined text-[14px] align-middle mr-1">download</span>
+                Baixar planilha modelo vazia
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" onClick={() => setShowImportModal(false)} className={styles.btnCancel}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={!importFile || importLoading} className={styles.btnConfirm}>
+                  {importLoading ? 'Importando...' : 'Confirmar Importação'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCategoryModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Nova Categoria</h3>
+              <button onClick={() => setShowCategoryModal(false)} className={styles.modalCloseBtn}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateCategory} className={styles.modalBody}>
+              <div className={styles.modalInputWrapper}>
+                <label className={styles.modalLabel}>Nome da Categoria</label>
+                <input 
+                  type="text" 
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="Ex: Laticínios"
+                  className={styles.modalFileInput.replace('file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer', '')}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" onClick={() => setShowCategoryModal(false)} className={styles.btnCancel}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={!newCategoryName.trim() || categoryLoading} className={styles.btnConfirm}>
+                  {categoryLoading ? 'Salvando...' : 'Adicionar Categoria'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Editar Produto</h3>
+              <button onClick={() => setShowEditModal(false)} className={styles.modalCloseBtn}>
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveEdit} className={styles.modalBody}>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={styles.modalInputWrapper}>
+                  <label className={styles.modalLabel}>Código de Barras / Ref</label>
+                  <input 
+                    type="text" 
+                    value={editForm.code}
+                    onChange={(e) => setEditForm({ ...editForm, code: e.target.value })}
+                    className="border border-slate-200/60 rounded-xl bg-slate-50 p-2 text-sm text-slate-800"
+                    required
+                  />
+                </div>
+                <div className={styles.modalInputWrapper}>
+                  <label className={styles.modalLabel}>Categoria</label>
+                  <select 
+                    value={editForm.category}
+                    onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                    className="border border-slate-200/60 rounded-xl bg-slate-50 p-2 text-sm text-slate-800"
+                    required
+                  >
+                    <option value="" disabled>Selecione...</option>
+                    {dbCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className={styles.modalInputWrapper}>
+                <label className={styles.modalLabel}>Nome do Produto</label>
+                <input 
+                  type="text" 
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="border border-slate-200/60 rounded-xl bg-slate-50 p-2 text-sm text-slate-800"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className={styles.modalInputWrapper}>
+                  <label className={styles.modalLabel}>Preço (R$)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={editForm.price}
+                    onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                    className="border border-slate-200/60 rounded-xl bg-slate-50 p-2 text-sm text-slate-800"
+                    required
+                  />
+                </div>
+                <div className={styles.modalInputWrapper}>
+                  <label className={styles.modalLabel}>Estoque Atual</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={editForm.stock}
+                    onChange={(e) => setEditForm({ ...editForm, stock: parseInt(e.target.value, 10) })}
+                    className="border border-slate-200/60 rounded-xl bg-slate-50 p-2 text-sm text-slate-800"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className={styles.modalInputWrapper}>
+                  <label className={styles.modalLabel}>Preço Atacado (R$)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={editForm.wholesale_price || ''}
+                    onChange={(e) => setEditForm({ ...editForm, wholesale_price: parseFloat(e.target.value) || 0 })}
+                    className="border border-slate-200/60 rounded-xl bg-slate-50 p-2 text-sm text-slate-800"
+                  />
+                </div>
+                <div className={styles.modalInputWrapper}>
+                  <label className={styles.modalLabel}>Qtd Mínima Atacado</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    value={editForm.wholesale_min_quantity || ''}
+                    onChange={(e) => setEditForm({ ...editForm, wholesale_min_quantity: parseInt(e.target.value, 10) || 0 })}
+                    className="border border-slate-200/60 rounded-xl bg-slate-50 p-2 text-sm text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button type="button" onClick={() => setShowEditModal(false)} className={styles.btnCancel}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={editLoading} className={styles.btnConfirm}>
+                  {editLoading ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {selectedProducts.length > 0 && isAdmin && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700 flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="flex items-center gap-2">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 text-sm font-bold">
+              {selectedProducts.length}
+            </span>
+            <span className="text-sm font-medium">Produtos Selecionados</span>
+          </div>
+          <div className="h-4 w-px bg-slate-700"></div>
+          <button
+            onClick={() => toggleSelectAll()}
+            className="text-sm font-semibold text-slate-300 hover:text-white transition-colors"
+          >
+            {selectedProducts.length === filteredProducts.length ? 'Desmarcar Todos' : 'Marcar Todos'}
+          </button>
+          <button
+            onClick={() => setItemsToDelete(selectedProducts)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-semibold transition-colors ml-2"
+          >
+            <span className="material-symbols-outlined text-[18px]">delete</span>
+            Excluir
+          </button>
+        </div>
+      )}
+
+      <ConfirmModal 
+        isOpen={itemsToDelete.length > 0}
+        title={itemsToDelete.length > 1 ? `Excluir ${itemsToDelete.length} Produtos?` : "Excluir Produto?"}
+        description={itemsToDelete.length > 1 
+          ? "Esta ação removerá todos os produtos selecionados do catálogo e não pode ser desfeita. Deseja continuar?" 
+          : "Esta ação removerá o produto do catálogo e não pode ser desfeita. Deseja continuar?"}
+        confirmText={itemsToDelete.length > 1 ? "Sim, Excluir Todos" : "Sim, Excluir"}
+        onConfirm={confirmDelete}
+        onCancel={() => setItemsToDelete([])}
+      />
     </div>
   );
 };

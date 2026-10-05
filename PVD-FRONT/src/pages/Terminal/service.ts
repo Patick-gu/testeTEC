@@ -1,7 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { usePdv } from '../../context/PdvContext';
+import { useAuth } from '../../context/AuthContext';
+import { Product } from '../../types/pdv';
 
 export const useTerminalService = () => {
+  const { token } = useAuth();
   const pdv = usePdv();
   const {
     cart,
@@ -13,7 +16,7 @@ export const useTerminalService = () => {
     lastScannedItem,
     quantityMultiplier,
     setQuantityMultiplier,
-    addItemByCode,
+    addProductToCart,
     removeItem,
     updateItemQuantity,
     clearCart,
@@ -29,6 +32,97 @@ export const useTerminalService = () => {
   const [barcodeInput, setBarcodeInput] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // New states for product search dropdown
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const API_URL = import.meta.env.VITE_API_URL as string;
+
+  useEffect(() => {
+    fetchProducts();
+  }, [token]);
+
+  const fetchProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const response = await fetch(`${API_URL}/produtos`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Falha ao carregar produtos');
+      const data = await response.json();
+      
+      const mappedData: Product[] = data.map((p: any) => ({
+        id: p.id.toString(),
+        code: p.barcode || p.code || '',
+        name: p.name || 'Produto Sem Nome',
+        brand: p.brand || '',
+        category: p.category_id ? 'mercearia' : 'all',
+        categoryLabel: p.category_id ? 'Mercearia' : 'Todas',
+        price: Number(p.price) || 0,
+        wholesale_price: Number(p.wholesale_price) || undefined,
+        wholesale_min_quantity: Number(p.wholesale_min_quantity) || undefined,
+        unit: p.unit || 'UN',
+        stock: Number(p.stock) || 0,
+        isWeighable: Boolean(p.is_weighable)
+      }));
+      setProducts(mappedData);
+    } catch (err) {
+      console.error('Erro ao buscar produtos:', err);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => { setSelectedIndex(0); }, [barcodeInput]);
+
+  const filteredProducts = useMemo(() => {
+    if (!barcodeInput.trim()) return products;
+    const clean = barcodeInput.toLowerCase().trim();
+    return products.filter(p => 
+      (p.name || '').toLowerCase().includes(clean) || (p.code || '').toLowerCase().includes(clean)
+    );
+  }, [products, barcodeInput]);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isDropdownOpen || filteredProducts.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev + 1) % filteredProducts.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev - 1 + filteredProducts.length) % filteredProducts.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const selectedProduct = filteredProducts[selectedIndex];
+      if (selectedProduct) {
+        selectProduct(selectedProduct);
+      }
+    }
+  };
+
+  const requestClearCart = () => {
+    if (cart.length > 0) setShowCancelConfirm(true);
+  };
+  
+  const confirmClearCart = () => {
+    clearCart();
+    setShowCancelConfirm(false);
+  };
+
+  const selectProduct = (product: Product) => {
+    addProductToCart(product, quantityMultiplier);
+    setBarcodeInput('');
+    setIsDropdownOpen(false);
+    setQuantityMultiplier(1);
+    inputRef.current?.focus();
+  };
+
   // Auth modal state for delete confirmation
   const [authModal, setAuthModal] = useState<{
     open: boolean;
@@ -41,9 +135,16 @@ export const useTerminalService = () => {
   // The supervisor code (in a real system this would come from the API)
   const SUPERVISOR_CODE = '1234';
 
-  // Focus barcode input automatically
+  // Focus barcode input via F3 shortcut instead of autofocus
   useEffect(() => {
-    inputRef.current?.focus();
+    const handleF3 = (e: KeyboardEvent) => {
+      if (e.key === 'F3') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleF3);
+    return () => window.removeEventListener('keydown', handleF3);
   }, []);
 
   // Listen to custom event for F4 cancel last item
@@ -62,19 +163,11 @@ export const useTerminalService = () => {
     e.preventDefault();
     if (!barcodeInput.trim()) return;
 
-    // Check if user entered quantity multiplier syntax, e.g. "3*7891000315507"
-    if (barcodeInput.includes('*')) {
-      const [qtyPart, codePart] = barcodeInput.split('*');
-      const qty = parseFloat(qtyPart);
-      if (!isNaN(qty) && qty > 0 && codePart) {
-        addItemByCode(codePart.trim(), qty);
-        setBarcodeInput('');
-        return;
-      }
+    if (filteredProducts.length > 0) {
+      selectProduct(filteredProducts[0]);
+    } else {
+      showToast('Produto não encontrado');
     }
-
-    addItemByCode(barcodeInput.trim(), quantityMultiplier);
-    setBarcodeInput('');
   };
 
   const handleQuickPayment = (method: 'cash' | 'pix' | 'debit' | 'credit') => {
@@ -134,11 +227,25 @@ export const useTerminalService = () => {
     inputRef,
     handleBarcodeSubmit,
     handleQuickPayment,
+    // Autocomplete Search States
+    products,
+    filteredProducts,
+    isDropdownOpen,
+    setIsDropdownOpen,
+    isLoadingProducts,
+    selectedIndex,
+    setSelectedIndex,
+    showCancelConfirm,
+    setShowCancelConfirm,
+    handleSearchKeyDown,
+    selectProduct,
     // Auth modal
     authModal,
     requestRemoveItem,
     setAuthInput,
     confirmRemoveItem,
-    cancelRemoveItem
+    cancelRemoveItem,
+    requestClearCart,
+    confirmClearCart
   };
 };

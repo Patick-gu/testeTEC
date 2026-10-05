@@ -2,10 +2,19 @@ import React from 'react';
 import { useTerminalService } from './service';
 import { usePdv } from '../../context/PdvContext';
 import { styles } from './style';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 export const TerminalScreen: React.FC = () => {
-  const { addItemByCode } = usePdv();
   const {
+    products,
+    filteredProducts,
+    isDropdownOpen,
+    setIsDropdownOpen,
+    isLoadingProducts,
+    selectedIndex,
+    setSelectedIndex,
+    handleSearchKeyDown,
+    selectProduct,
     cart,
     subtotal,
     discount,
@@ -32,7 +41,11 @@ export const TerminalScreen: React.FC = () => {
     requestRemoveItem,
     setAuthInput,
     confirmRemoveItem,
-    cancelRemoveItem
+    cancelRemoveItem,
+    showCancelConfirm,
+    setShowCancelConfirm,
+    requestClearCart,
+    confirmClearCart
   } = useTerminalService();
 
   // Focus the quantity input of the last scanned item automatically
@@ -58,62 +71,69 @@ export const TerminalScreen: React.FC = () => {
             
             <form onSubmit={handleBarcodeSubmit} className={styles.barcodeForm}>
               <div className={styles.barcodeIconWrapper}>
-                <span className={styles.barcodeIcon}>barcode_scanner</span>
+                <span className="material-symbols-outlined text-slate-400">search</span>
               </div>
 
-              <input
-                ref={inputRef}
-                type="text"
-                value={barcodeInput}
-                onChange={(e) => setBarcodeInput(e.target.value)}
-                placeholder="Escaneie o código de barras ou digite o código / F2 busca"
-                className={styles.barcodeInput}
-              />
+              <div className="relative flex-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={barcodeInput}
+                  onChange={(e) => {
+                    setBarcodeInput(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Busque por nome ou código do produto [F3]"
+                  className={styles.barcodeInput}
+                />
+                
+                {isDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-50 max-h-96 overflow-y-auto">
+                    {isLoadingProducts ? (
+                      <div className="p-5 text-center text-slate-500">Carregando produtos...</div>
+                    ) : filteredProducts.length > 0 ? (
+                      filteredProducts.map((product, index) => (
+                        <div 
+                          key={product.id}
+                          className={`flex items-center justify-between p-4 border-b border-slate-100 cursor-pointer transition-colors ${index === selectedIndex ? 'bg-blue-50 border-blue-100' : 'hover:bg-slate-50'}`}
+                          onMouseEnter={() => setSelectedIndex(index)}
+                          onClick={() => selectProduct(product)}
+                        >
+                          <div>
+                            <p className="text-base font-bold text-slate-800">{product.name}</p>
+                            <p className="text-sm text-slate-500 mt-0.5">Cód: {product.code}</p>
+                          </div>
+                          <span className="text-lg font-bold text-emerald-600">
+                            R$ {product.price.toFixed(2)}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-5 text-center text-slate-500">Nenhum produto encontrado.</div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className={styles.barcodeActions}>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('catalogo')}
+                  onClick={() => setIsDropdownOpen(true)}
                   className={styles.btnSearch}
                 >
-                  F2 BUSCA
+                  BUSCAR
                 </button>
-
-                <button type="submit" className={styles.btnEnter}>
-                  ENTER
-                </button>
-
-                <div className={styles.qtyControl}>
-                  <span className={styles.qtyLabel}>QTD [F3]</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantityMultiplier(Math.max(1, quantityMultiplier - 1))}
-                    className={styles.qtyBtnMinus}
-                  >
-                    -
-                  </button>
-                  <span className={styles.qtyValue}>{quantityMultiplier}</span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantityMultiplier(quantityMultiplier + 1)}
-                    className={styles.qtyBtnPlus}
-                  >
-                    +
-                  </button>
-                </div>
               </div>
             </form>
 
             {lastScannedItem && (
               <div className={styles.lastScannedContainer}>
                 <div className={styles.lastScannedLeft}>
-                  <div className={styles.lastScannedImgWrapper}>
-                    <img
-                      src={lastScannedItem.product.imageUrl}
-                      alt={lastScannedItem.product.name}
-                      className={styles.lastScannedImg}
-                      referrerPolicy="no-referrer"
-                    />
+                  <div className={`${styles.lastScannedImgWrapper} flex items-center justify-center text-slate-400`}>
+                    <span className="material-symbols-outlined">shopping_cart</span>
                   </div>
                   <div className={styles.lastScannedInfo}>
                     <div className={styles.lastScannedTagWrapper}>
@@ -219,7 +239,21 @@ export const TerminalScreen: React.FC = () => {
                             </div>
                           </td>
                           <td className={styles.tdPrice}>
-                            R$ {item.unitPrice.toFixed(2).replace('.', ',')}
+                            {item.unitPrice < item.product.price ? (
+                              <div className="flex flex-col items-end leading-tight">
+                                <span className="text-[10px] text-slate-400 line-through">
+                                  R$ {item.product.price.toFixed(2).replace('.', ',')}
+                                </span>
+                                <span className="text-emerald-700 font-semibold">
+                                  R$ {item.unitPrice.toFixed(2).replace('.', ',')}
+                                </span>
+                                <span className="text-[9px] font-bold uppercase text-emerald-600 bg-emerald-50 px-1 rounded">
+                                  Atacado
+                                </span>
+                              </div>
+                            ) : (
+                              <>R$ {item.unitPrice.toFixed(2).replace('.', ',')}</>
+                            )}
                           </td>
                           <td className={`${styles.tdSubtotalBase} ${isLast ? styles.tdSubtotalLast : styles.tdSubtotalNormal}`}>
                             R$ {item.subtotal.toFixed(2).replace('.', ',')}
@@ -339,7 +373,16 @@ export const TerminalScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div className={styles.mainActionsSection}>
+              <div className="flex gap-2 pt-3 border-t border-slate-100 mt-auto">
+                <button
+                  onClick={requestClearCart}
+                  disabled={cart.length === 0}
+                  className="h-12 px-4 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:text-red-600 hover:border-red-100 disabled:opacity-40 text-slate-500 font-semibold text-xs flex flex-col sm:flex-row items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0"
+                >
+                  <span className="material-symbols-outlined text-lg">cancel</span>
+                  CANCELAR [ESC]
+                </button>
+
                 <button
                   onClick={() => {
                     if (cart.length > 0) {
@@ -348,34 +391,14 @@ export const TerminalScreen: React.FC = () => {
                       showToast('Adicione produtos para fechar a venda');
                     }
                   }}
-                  className={styles.btnFinish}
+                  className="flex-1 h-12 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm transition-all flex items-center justify-between px-5"
                 >
-                  <div className={styles.btnFinishLeft}>
-                    <span className={styles.btnFinishIcon}>check_circle</span>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-lg">check_circle</span>
                     <span>FINALIZAR VENDA</span>
                   </div>
-                  <span className={styles.btnFinishKey}>F10</span>
+                  <span className="px-2 py-0.5 rounded-md bg-white/10 text-white/70 font-mono-num text-xs hidden sm:inline-block">F10</span>
                 </button>
-
-                <div className={styles.secondaryActionsGrid}>
-                  <button
-                    onClick={parkCurrentSale}
-                    disabled={cart.length === 0}
-                    className={styles.btnPark}
-                  >
-                    <span className={styles.btnParkIcon}>pause_circle</span>
-                    DEIXAR EM ESPERA [F11]
-                  </button>
-
-                  <button
-                    onClick={clearCart}
-                    disabled={cart.length === 0}
-                    className={styles.btnCancel}
-                  >
-                    <span className={styles.btnCancelIcon}>cancel</span>
-                    CANCELAR [ESC]
-                  </button>
-                </div>
               </div>
 
             </div>
@@ -385,6 +408,15 @@ export const TerminalScreen: React.FC = () => {
       </div>
 
       {/* Auth Modal for Item Removal */}
+      <ConfirmModal
+        isOpen={showCancelConfirm}
+        title="Cancelar Venda?"
+        description="Esta ação removerá todos os itens e não poderá ser desfeita. Tem certeza que deseja cancelar a venda atual?"
+        confirmText="Sim, Cancelar Venda"
+        onConfirm={confirmClearCart}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
+
       {authModal.open && (
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl border border-slate-200/60 p-6 flex flex-col gap-4">

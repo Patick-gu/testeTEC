@@ -1,0 +1,117 @@
+name: Autenticação
+description: |-
+
+  APIs para gerenciamento de login e geração de tokens JWT.
+endpoints:
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/login
+    metadata:
+      custom: []
+      groupName: Autenticação
+      groupDescription: |-
+
+        APIs para gerenciamento de login e geração de tokens JWT.
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Login do Usuário'
+      description: |-
+        Autentica um usuário usando e-mail e senha e retorna um token JWT (JSON Web Token)
+        que deve ser usado no header "Authorization: Bearer {token}" nas rotas privadas.
+      authenticated: false
+      deprecated: false
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      email:
+        custom: []
+        name: email
+        description: 'O e-mail de acesso do usuário.'
+        required: true
+        example: patrick@kasterweb.com
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+      password:
+        custom: []
+        name: password
+        description: 'A senha do usuário.'
+        required: true
+        example: secreta123
+        type: string
+        enumValues: []
+        exampleWasSpecified: true
+        nullable: false
+        deprecated: false
+    cleanBodyParameters:
+      email: patrick@kasterweb.com
+      password: secreta123
+    fileParameters: []
+    responses:
+      -
+        custom: []
+        status: 200
+        content: |-
+          {
+            "acess_Token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+            "token_type": "bearer",
+            "expires_in": 3600
+          }
+        headers: []
+        description: ''
+      -
+        custom: []
+        status: 401
+        content: |-
+          {
+            "error": "Unauthorized"
+          }
+        headers: []
+        description: ''
+    responseFields: []
+    auth: []
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - POST
+    uri: api/logout
+    metadata:
+      custom: []
+      groupName: Autenticação
+      groupDescription: |-
+
+        APIs para gerenciamento de login e geração de tokens JWT.
+      subgroup: ''
+      subgroupDescription: ''
+      title: Logout
+      description: 'Invalida o Token JWT atual (adiciona na Blacklist).'
+      authenticated: false
+      deprecated: false
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters: []
+    cleanUrlParameters: []
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters: []
+    cleanBodyParameters: []
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth: []
+    controller: null
+    method: null
+    route: null

@@ -3,13 +3,15 @@ import { Product, CartItem, AppliedPayment, PaymentMethodType, CashMovementRecor
 import _INITIAL_PRODUCTS from '../JSON/Mock/products.json';
 import _INITIAL_CART_ITEMS from '../JSON/Mock/cart.json';
 import { playBeep } from '../utils/audio';
+import { useAuth } from './AuthContext';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const INITIAL_PRODUCTS = _INITIAL_PRODUCTS as Product[];
 const INITIAL_CART_ITEMS = _INITIAL_CART_ITEMS as CartItem[];
 
 interface PdvContextType {
-  activeTab: 'terminal' | 'catalogo' | 'fechamento' | 'caixa';
-  setActiveTab: (tab: 'terminal' | 'catalogo' | 'fechamento' | 'caixa') => void;
+  activeTab: 'terminal' | 'catalogo' | 'fechamento' | 'caixa' | 'equipe';
+  setActiveTab: (tab: 'terminal' | 'catalogo' | 'fechamento' | 'caixa' | 'equipe') => void;
   cart: CartItem[];
   subtotal: number;
   discount: number;
@@ -26,7 +28,6 @@ interface PdvContextType {
   setScaleWeight: (w: number) => void;
   
   // Actions
-  addItemByCode: (codeOrEan: string, quantity?: number) => Promise<boolean>;
   addProductToCart: (product: Product, quantity?: number) => void;
   removeItem: (itemId: string) => void;
   updateItemQuantity: (itemId: string, newQty: number) => void;
@@ -46,14 +47,16 @@ interface PdvContextType {
     cardCredit: number;
     movements: CashMovementRecord[];
   };
-  addCashMovement: (type: 'sangria' | 'suprimento', amount: number, reason: string, auth: string) => void;
+  addCashMovement: (type: 'sangria' | 'suprimento', amount: number, reason: string, auth: string) => Promise<boolean>;
   closeTurno: () => void;
 
   // Checkout
-  completeSale: (payments: AppliedPayment[], troco: number) => void;
+  completeSale: (payments: AppliedPayment[], troco: number) => Promise<void>;
   recentReceipt: CompletedSale | null;
   showReceiptModal: boolean;
   setShowReceiptModal: (show: boolean) => void;
+  showPrintPromptModal: boolean;
+  setShowPrintPromptModal: (show: boolean) => void;
   showPaymentModal: boolean;
   setShowPaymentModal: (show: boolean) => void;
   selectedPaymentMethod: PaymentMethodType;
@@ -80,7 +83,59 @@ interface PdvContextType {
 const PdvContext = createContext<PdvContextType | undefined>(undefined);
 
 export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<'terminal' | 'catalogo' | 'fechamento' | 'caixa'>('terminal');
+  const { token, user } = useAuth();
+  
+  useEffect(() => {
+    if (!token) return;
+    // Fetch movements
+    fetch(`${API_URL}/caixa/movimentacoes`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then((data: any[]) => {
+      if (Array.isArray(data)) {
+        const mappedMovements = data.map(item => {
+          const isSangria = item.type === 'sangria';
+          const time = item.created_at ? new Date(item.created_at).toLocaleTimeString('pt-BR', { hour12: false }) : '';
+          return {
+            id: item.id,
+            time: time,
+            type: item.type as 'sangria' | 'suprimento',
+            title: isSangria ? 'Sangria de Caixa' : 'Suprimento',
+            documentRef: `Recibo ${isSangria ? 'SG' : 'SP'}-${item.id.substring(0,4)}`,
+            reason: item.descricao,
+            operator: user?.name || 'Operador',
+            authorizer: 'Supervisão',
+            amount: Number(item.valor)
+          };
+        });
+        setCashDrawer(prev => ({ ...prev, movements: mappedMovements }));
+      }
+    })
+    .catch(err => console.error("Erro ao buscar movimentações", err));
+
+    // Fetch status
+    fetch(`${API_URL}/caixa/status`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then((data: any) => {
+      if (data && typeof data.totalSales !== 'undefined') {
+        setCashDrawer(prev => ({
+          ...prev,
+          openingFund: data.openingFund,
+          totalSales: data.totalSales,
+          salesCount: data.salesCount,
+          cashInDrawer: data.cashInDrawer,
+          pixTotal: data.pixTotal,
+          cardDebit: data.cardDebit,
+          cardCredit: data.cardCredit
+        }));
+      }
+    })
+    .catch(err => console.error("Erro ao buscar status do caixa", err));
+  }, [token]);
+  const [activeTab, setActiveTab] = useState<'terminal' | 'catalogo' | 'fechamento' | 'caixa' | 'equipe'>('terminal');
   
   // Cart starts with mock data for demonstration
   const [cart, setCart] = useState<CartItem[]>(
@@ -105,6 +160,7 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Modals
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
+  const [showPrintPromptModal, setShowPrintPromptModal] = useState<boolean>(false);
   const [recentReceipt, setRecentReceipt] = useState<CompletedSale | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>('cash');
@@ -163,48 +219,14 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     cardCredit: number;
     movements: CashMovementRecord[];
   }>({
-    openingFund: 250.00,
-    totalSales: 4892.40,
-    salesCount: 42,
-    cashInDrawer: 1180.00,
-    pixTotal: 1425.80,
-    cardDebit: 1120.00,
-    cardCredit: 1166.60,
-    movements: [
-      {
-        id: 'mov-1',
-        time: '14:10:04',
-        type: 'sangria',
-        title: 'Sangria de Caixa',
-        documentRef: 'Recibo fiscal #SG-8941',
-        reason: 'Transferência preventiva para Cofre Central',
-        operator: 'Juliana Costa',
-        authorizer: 'Sup. Marcos Silveira',
-        amount: 400.00
-      },
-      {
-        id: 'mov-2',
-        time: '11:45:19',
-        type: 'suprimento',
-        title: 'Suprimento',
-        documentRef: 'Lote Troco Miúdo #SP-1044',
-        reason: 'Reposição de cédulas de R$ 2 e R$ 5',
-        operator: 'Juliana Costa',
-        authorizer: 'Tesouraria Geral',
-        amount: 100.00
-      },
-      {
-        id: 'mov-3',
-        time: '08:14:22',
-        type: 'abertura',
-        title: 'Fundo Inicial',
-        documentRef: 'Abertura de Caixa #OP-4829',
-        reason: 'Lançamento obrigatório de troco',
-        operator: 'Juliana Costa',
-        authorizer: 'Automático Sistema',
-        amount: 250.00
-      }
-    ]
+    openingFund: 0,
+    totalSales: 0,
+    salesCount: 0,
+    cashInDrawer: 0,
+    pixTotal: 0,
+    cardDebit: 0,
+    cardCredit: 0,
+    movements: []
   });
 
   const showToast = (msg: string) => {
@@ -215,8 +237,10 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Calculations
-  const subtotal = Number(cart.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
-  const discount = 0.00;
+  // Subtotal = preço de varejo; desconto = economia gerada pelo preço de atacado
+  const subtotal = Number(cart.reduce((sum, item) => sum + item.quantity * item.product.price, 0).toFixed(2));
+  const netTotal = Number(cart.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
+  const discount = Number(Math.max(0, subtotal - netTotal).toFixed(2));
   const addition = 0.00;
   const total = Number((subtotal - discount + addition).toFixed(2));
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -235,22 +259,34 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const updated = [...prev];
         const current = updated[existingIndex];
         const newQty = Number((current.quantity + qty).toFixed(3));
+        
+        let finalUnitPrice = current.product.price;
+        if (current.product.wholesale_min_quantity && newQty >= current.product.wholesale_min_quantity) {
+          finalUnitPrice = current.product.wholesale_price || finalUnitPrice;
+        }
+
         updated[existingIndex] = {
           ...current,
           quantity: newQty,
-          subtotal: Number((newQty * current.unitPrice).toFixed(2)),
+          unitPrice: finalUnitPrice,
+          subtotal: Number((newQty * finalUnitPrice).toFixed(2)),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false })
         };
         // Move to end so it shows as last scanned
         const [moved] = updated.splice(existingIndex, 1);
         return [...updated, moved];
       } else {
+        let finalUnitPrice = product.price;
+        if (product.wholesale_min_quantity && qty >= product.wholesale_min_quantity) {
+          finalUnitPrice = product.wholesale_price || finalUnitPrice;
+        }
+
         const newItem: CartItem = {
           id: `cart-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           product,
           quantity: qty,
-          unitPrice: product.price,
-          subtotal: Number((qty * product.price).toFixed(2)),
+          unitPrice: finalUnitPrice,
+          subtotal: Number((qty * finalUnitPrice).toFixed(2)),
           timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false })
         };
         return [...prev, newItem];
@@ -259,63 +295,6 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setQuantityMultiplier(1);
     showToast(`1x ${product.name} registrado no caixa`);
-  };
-
-  const addItemByCode = async (codeOrEan: string, quantity?: number): Promise<boolean> => {
-    const clean = codeOrEan.trim().toLowerCase();
-    const found = INITIAL_PRODUCTS.find(
-      (p) => p.code.toLowerCase() === clean || p.name.toLowerCase().includes(clean)
-    );
-
-    if (found) {
-      if (found.isWeighable && (!quantity || quantity === 1)) {
-        setWeighingProduct(found);
-        setShowScaleModal(true);
-      } else {
-        addProductToCart(found, quantity);
-      }
-      return true;
-    } else {
-      // Tenta buscar o produto real na API pública (OpenFoodFacts)
-      try {
-        const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${clean}.json`);
-        const data = await res.json();
-        
-        if (data && data.status === 1 && data.product) {
-          const fetchedName = data.product.product_name || data.product.generic_name || 'Produto Importado';
-          const fetchedImage = data.product.image_front_url || data.product.image_url || 'https://cdn-icons-png.flaticon.com/512/8630/8630691.png';
-          
-          const dynamicProduct: Product = {
-            id: 'dyn-' + Date.now().toString(),
-            code: codeOrEan,
-            name: fetchedName.toUpperCase(),
-            price: 9.99,
-            image: fetchedImage,
-            unit: 'UN'
-          };
-          
-          addProductToCart(dynamicProduct, quantity || 1);
-          showToast(`${dynamicProduct.name} (API de Alimentos) registrado!`);
-          return true;
-        }
-      } catch (e) {
-        console.error("Falha ao buscar na OpenFoodFacts", e);
-      }
-
-      // PRODUTO NÃO ENCONTRADO EM LUGAR NENHUM (Fallback Genérico)
-      const unknownProduct: Product = {
-        id: 'unk-' + Date.now().toString(),
-        code: codeOrEan,
-        name: 'Item Avulso (Não Identificado)',
-        price: 9.99,
-        image: 'https://cdn-icons-png.flaticon.com/512/8630/8630691.png',
-        unit: 'UN'
-      };
-      
-      addProductToCart(unknownProduct, quantity || 1);
-      showToast(`Código ${codeOrEan} não cadastrado. Inserido como Item Avulso.`);
-      return true;
-    }
   };
 
   const removeItem = (itemId: string) => {
@@ -330,15 +309,20 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return;
     }
     setCart((prev) =>
-      prev.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              quantity: newQty,
-              subtotal: Number((newQty * item.unitPrice).toFixed(2))
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const p = item.product;
+        const unitPrice =
+          p.wholesale_min_quantity && p.wholesale_price && newQty >= p.wholesale_min_quantity
+            ? p.wholesale_price
+            : p.price;
+        return {
+          ...item,
+          quantity: newQty,
+          unitPrice,
+          subtotal: Number((newQty * unitPrice).toFixed(2))
+        };
+      })
     );
   };
 
@@ -410,66 +394,96 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Turno encerrado. Redução Z emitida na impressora fiscal.');
   };
 
-  const completeSale = (payments: AppliedPayment[], troco: number) => {
-    const saleTotal = total;
-    const nowStr = new Date().toLocaleTimeString('pt-BR', { hour12: false });
-    const dateStr = new Date().toLocaleDateString('pt-BR');
+  const completeSale = async (payments: AppliedPayment[], troco: number) => {
+    try {
+      const pMethod = payments[0]?.method;
+      const paymentMethodStr = pMethod === 'credit' ? 'credit_card' : pMethod === 'debit' ? 'debit_card' : pMethod || 'cash';
+      
+      const payload = {
+        payment_method: paymentMethodStr,
+        items: cart.map(item => ({
+          produto_id: item.product.id,
+          quantity: item.quantity
+        }))
+      };
 
-    // Update cash drawer stats
-    setCashDrawer((prev) => {
-      let addCash = 0;
-      let addPix = 0;
-      let addDebit = 0;
-      let addCredit = 0;
-
-      payments.forEach((p) => {
-        if (p.method === 'cash') {
-          // cash amount paid minus change
-          addCash += (p.amount - troco);
-        } else if (p.method === 'pix') {
-          addPix += p.amount;
-        } else if (p.method === 'debit') {
-          addDebit += p.amount;
-        } else if (p.method === 'credit') {
-          addCredit += p.amount;
-        }
+      const res = await fetch(`${API_URL}/sales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
       });
 
-      return {
-        ...prev,
-        totalSales: Number((prev.totalSales + saleTotal).toFixed(2)),
-        salesCount: prev.salesCount + 1,
-        cashInDrawer: Number((prev.cashInDrawer + addCash).toFixed(2)),
-        pixTotal: Number((prev.pixTotal + addPix).toFixed(2)),
-        cardDebit: Number((prev.cardDebit + addDebit).toFixed(2)),
-        cardCredit: Number((prev.cardCredit + addCredit).toFixed(2))
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(`Erro na venda: ${data.erro || 'Falha ao processar'}`);
+        return; // Block checkout, don't close modal
+      }
+
+      const saleTotal = total;
+      const nowStr = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+      const dateStr = new Date().toLocaleDateString('pt-BR');
+
+      // Update cash drawer stats
+      setCashDrawer((prev) => {
+        let addCash = 0;
+        let addPix = 0;
+        let addDebit = 0;
+        let addCredit = 0;
+
+        payments.forEach((p) => {
+          if (p.method === 'cash') {
+            addCash += (p.amount - troco);
+          } else if (p.method === 'pix') {
+            addPix += p.amount;
+          } else if (p.method === 'debit') {
+            addDebit += p.amount;
+          } else if (p.method === 'credit') {
+            addCredit += p.amount;
+          }
+        });
+
+        return {
+          ...prev,
+          totalSales: Number((prev.totalSales + saleTotal).toFixed(2)),
+          salesCount: prev.salesCount + 1,
+          cashInDrawer: Number((prev.cashInDrawer + addCash).toFixed(2)),
+          pixTotal: Number((prev.pixTotal + addPix).toFixed(2)),
+          cardDebit: Number((prev.cardDebit + addDebit).toFixed(2)),
+          cardCredit: Number((prev.cardCredit + addCredit).toFixed(2))
+        };
+      });
+
+      const receipt: CompletedSale = {
+        saleNumber: `#${saleNumber}`,
+        timestamp: `${dateStr} ${nowStr}`,
+        items: [...cart],
+        subtotal,
+        discount,
+        total: saleTotal,
+        payments,
+        change: troco,
+        customerCpf: customer.cpf,
+        nfceKey: `3524 1004 8291 0001 5500 1000 0049 2810 ${Math.floor(10000000 + Math.random() * 90000000)}`
       };
-    });
 
-    const receipt: CompletedSale = {
-      saleNumber: `#${saleNumber}`,
-      timestamp: `${dateStr} ${nowStr}`,
-      items: [...cart],
-      subtotal,
-      discount,
-      total: saleTotal,
-      payments,
-      change: troco,
-      customerCpf: customer.cpf,
-      nfceKey: `3524 1004 8291 0001 5500 1000 0049 2810 ${Math.floor(10000000 + Math.random() * 90000000)}`
-    };
+      setRecentReceipt(receipt);
+      setShowPrintPromptModal(true);
+      setShowPaymentModal(false);
+      playBeep('success');
 
-    setRecentReceipt(receipt);
-    setShowReceiptModal(true);
-    setShowPaymentModal(false);
-    playBeep('success');
-
-    // Clear cart and prepare for next customer
-    setCart([]);
-    setSaleNumber(String(Number(saleNumber) + 1).padStart(5, '0'));
-    setCustomer({ cpf: '', name: 'Consumidor Final (CPF não informado)' });
-    setActiveTab('terminal');
-    showToast(`Venda #${saleNumber} concluída com sucesso! NFC-e emitida.`);
+      // Clear cart and prepare for next customer
+      setCart([]);
+      setSaleNumber(String(Number(saleNumber) + 1).padStart(5, '0'));
+      setCustomer({ cpf: '', name: 'Consumidor Final (CPF não informado)' });
+      setActiveTab('terminal');
+      showToast(`Venda #${saleNumber} concluída com sucesso!`);
+    } catch (err) {
+      showToast('Erro de conexão ao finalizar venda.');
+    }
   };
 
   // Keyboard shortcut listener
@@ -500,11 +514,12 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setShowCpfPromptModal(false);
         } else if (showPaymentModal) {
           setShowPaymentModal(false);
-        } else if (showHelpModal || showCustomerModal || showScaleModal || showReceiptModal) {
+        } else if (showHelpModal || showCustomerModal || showScaleModal || showReceiptModal || showPrintPromptModal) {
           setShowHelpModal(false);
           setShowCustomerModal(false);
           setShowScaleModal(false);
           setShowReceiptModal(false);
+          setShowPrintPromptModal(false);
         } else if (activeTab !== 'terminal') {
           setActiveTab('terminal');
         }
@@ -513,7 +528,7 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, cart.length, showCpfPromptModal, showPaymentModal, showHelpModal, showCustomerModal, showScaleModal, showReceiptModal]);
+  }, [activeTab, cart.length, showCpfPromptModal, showPaymentModal, showHelpModal, showCustomerModal, showScaleModal, showReceiptModal, showPrintPromptModal]);
 
   return (
     <PdvContext.Provider
@@ -534,7 +549,6 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCustomer,
         scaleWeight,
         setScaleWeight,
-        addItemByCode,
         addProductToCart,
         removeItem,
         updateItemQuantity,
@@ -549,6 +563,8 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         recentReceipt,
         showReceiptModal,
         setShowReceiptModal,
+        showPrintPromptModal,
+        setShowPrintPromptModal,
         showPaymentModal,
         setShowPaymentModal,
         selectedPaymentMethod,

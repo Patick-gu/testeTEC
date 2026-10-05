@@ -1,11 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { usePdv } from '../../context/PdvContext';
-import _INITIAL_PRODUCTS from '../../JSON/Mock/products.json';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { ProductCategory, Product } from '../../types/pdv';
 
-const INITIAL_PRODUCTS = _INITIAL_PRODUCTS as Product[];
-
 export const useCatalogService = () => {
+  const { showToast } = useToast();
   const {
     addProductToCart,
     cart,
@@ -16,43 +16,225 @@ export const useCatalogService = () => {
     scaleWeight,
     openPaymentModal
   } = usePdv();
+  const { token, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Import Modal State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<ProductCategory>('all');
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto focus input on entry
+  const API_URL = import.meta.env.VITE_API_URL as string;
+
   useEffect(() => {
-    searchInputRef.current?.focus();
+    fetchProducts();
+    // eslint-disable-next-line
   }, []);
 
-  // Category filters
-  const categories: { id: ProductCategory; label: string; shortcut: string; icon: string }[] = [
-    { id: 'all', label: 'TODOS OS PRODUTOS', shortcut: 'ALT+0', icon: 'apps' },
-    { id: 'bebidas', label: 'BEBIDAS', shortcut: 'ALT+1', icon: 'local_cafe' },
-    { id: 'padaria', label: 'PADARIA & CONFEITARIA', shortcut: 'ALT+2', icon: 'bakery_dining' },
-    { id: 'mercearia', label: 'MERCEARIA', shortcut: 'ALT+3', icon: 'shopping_basket' },
-    { id: 'hortifruti', label: 'HORTIFRUTI (PESO)', shortcut: 'ALT+4', icon: 'nutrition' },
-    { id: 'conveniencia', label: 'CONVENIÊNCIA', shortcut: 'ALT+5', icon: 'storefront' }
-  ];
+  const fetchProducts = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/produtos`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Falha ao buscar produtos');
+      const data = await res.json();
+      
+      // Map backend fields to frontend expected types to prevent crashes
+      const mappedData = data.map((p: any) => ({
+        ...p,
+        price: parseFloat(p.price) || 0,
+        wholesale_price: p.wholesale_price ? parseFloat(p.wholesale_price) : undefined,
+        wholesale_min_quantity: p.wholesale_min_quantity ? parseInt(p.wholesale_min_quantity, 10) : undefined,
+        stock: p.stock_quantity || 0,
+        unit: p.unit || 'UN',
+        brand: p.brand || '',
+        category: p.categoria_id || p.category || '',
+        categoryLabel: p.categoria?.name || 'Sem Categoria',
+        isWeighable: false, // Default unless backend adds this later
+        lowStock: (p.stock_quantity || 0) < 15
+      }));
+
+      setProducts(mappedData);
+    } catch (err: any) {
+      console.error(err);
+      setProducts([]);
+      setError('Erro ao carregar produtos do servidor.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importFile) return;
+
+    setImportLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+
+      const res = await fetch(`${API_URL}/produtos/import`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // FormData automatiza o Content-Type para multipart/form-data
+        },
+        body: formData
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || errorData.message || 'Erro ao importar arquivo');
+      }
+
+      showToast("Importação concluída com sucesso!", "success");
+      setShowImportModal(false);
+      setImportFile(null);
+      fetchProducts(); // Recarrega os produtos após upload
+    } catch (err: any) {
+      showToast("Erro na importação: " + err.message, "error");
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleDownloadModel = async () => {
+    try {
+      const res = await fetch(`${API_URL}/produtos/import/template`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!res.ok) throw new Error('Falha ao baixar o modelo');
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'produtos_modelo.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      showToast("Erro ao baixar o modelo: " + err.message, "error");
+    }
+  };
+
+  // Category state
+  const [dbCategories, setDbCategories] = useState<{ id: string; name: string }[]>([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryLoading, setCategoryLoading] = useState(false);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+    // eslint-disable-next-line
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${API_URL}/categorias`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDbCategories(data);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar categorias", err);
+    }
+  };
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+
+    setCategoryLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/categorias`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newCategoryName })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Erro ao criar categoria');
+      }
+
+      await fetchCategories(); // recarrega a lista
+      setShowCategoryModal(false);
+      setNewCategoryName('');
+      showToast("Categoria adicionada com sucesso!", "success");
+    } catch (err: any) {
+      showToast("Erro ao criar categoria: " + err.message, "error");
+    } finally {
+      setCategoryLoading(false);
+    }
+  };
+
+  // Build the unified category list
+  const categories = useMemo(() => {
+    const baseList: { id: string | 'all'; label: string; shortcut: string; icon: string }[] = [
+      { id: 'all', label: 'TODOS OS PRODUTOS', shortcut: 'ALT+0', icon: 'apps' },
+    ];
+    
+    // Filter to only categories that have at least one product
+    const activeCategories = dbCategories.filter(c => 
+      products.some(p => (p as any).categoria_id === c.id || p.category === c.id)
+    );
+
+    // Map backend categories
+    const mappedDb = activeCategories.map((c, i) => ({
+      id: c.id,
+      label: c.name.toUpperCase(),
+      shortcut: `ALT+${i + 1}`,
+      icon: 'label' // Default icon for DB categories
+    }));
+
+    return [...baseList, ...mappedDb];
+  }, [dbCategories, products]);
+
+  const [showOnlyCritical, setShowOnlyCritical] = useState(false);
 
   // Filtered products
   const filteredProducts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return INITIAL_PRODUCTS.filter((prod) => {
-      const matchesCategory = selectedCategory === 'all' || prod.category === selectedCategory;
+    return products.filter((prod) => {
+      // Let's check both prod.category and prod.categoria_id.
+      const catId = (prod as any).categoria_id || prod.category;
+      const matchesCategory = selectedCategory === 'all' || catId === selectedCategory;
       const matchesQuery =
         !q ||
-        prod.name.toLowerCase().includes(q) ||
-        prod.code.toLowerCase().includes(q) ||
-        prod.brand.toLowerCase().includes(q);
-      return matchesCategory && matchesQuery;
+        (prod.name && prod.name.toLowerCase().includes(q)) ||
+        (prod.code && prod.code.toLowerCase().includes(q)) ||
+        (prod.brand && prod.brand.toLowerCase().includes(q));
+        
+      const matchesCritical = showOnlyCritical ? prod.lowStock : true;
+
+      return matchesCategory && matchesQuery && matchesCritical;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, products, showOnlyCritical]);
 
   const criticalStockCount = useMemo(() => {
-    return INITIAL_PRODUCTS.filter((p) => p.lowStock || p.stock < 15).length;
-  }, []);
+    return products.filter((p) => p.lowStock || p.stock < 15).length;
+  }, [products]);
 
   const handleCardClick = (product: Product) => {
     if (product.isWeighable) {
@@ -61,7 +243,6 @@ export const useCatalogService = () => {
     } else {
       addProductToCart(product, 1);
     }
-    // Mantém o foco no campo de busca para o usuário continuar digitando, mas previne que a tela pule para o topo
     searchInputRef.current?.focus({ preventScroll: true });
   };
 
@@ -75,6 +256,115 @@ export const useCatalogService = () => {
     } else if (e.key === 'Escape') {
       setSearchQuery('');
       setActiveTab('terminal');
+    }
+  };
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ 
+    name: '', code: '', price: 0, stock: 0, category: '', 
+    wholesale_price: 0, wholesale_min_quantity: 0 
+  });
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Seleção e Exclusão (Simples ou em Massa)
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+
+  const toggleProductSelection = (id: string) => {
+    setSelectedProducts(prev => 
+      prev.includes(id) ? prev.filter(pId => pId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.length === filteredProducts.length && filteredProducts.length > 0) {
+      setSelectedProducts([]);
+    } else {
+      setSelectedProducts(filteredProducts.map(p => p.id));
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (itemsToDelete.length === 0) return;
+    try {
+      // Deletar em série (ou concorrente via Promise.all)
+      await Promise.all(itemsToDelete.map(async (id) => {
+        const res = await fetch(`${API_URL}/produtos/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Falha em um ou mais itens');
+      }));
+      
+      showToast(itemsToDelete.length > 1 ? `${itemsToDelete.length} Produtos excluídos!` : "Produto excluído com sucesso!", "success");
+      setItemsToDelete([]);
+      setSelectedProducts([]); // Limpa a seleção após exclusão
+      fetchProducts();
+    } catch (err: any) {
+      showToast("Erro ao excluir produto(s).", "error");
+      setItemsToDelete([]);
+    }
+  };
+
+  const openEditModal = (prod: any) => {
+    setEditingProduct(prod);
+    setEditForm({
+      name: prod.name,
+      code: prod.code,
+      price: prod.price,
+      stock: prod.stock,
+      category: prod.category,
+      wholesale_price: prod.wholesale_price || 0,
+      wholesale_min_quantity: prod.wholesale_min_quantity || 0
+    });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    setEditLoading(true);
+
+    try {
+      const payload: any = {
+        name: editForm.name,
+        code: editForm.code,
+        price: editForm.price,
+        stock_quantity: editForm.stock,
+        categoria_id: editForm.category
+      };
+
+      if (editForm.wholesale_min_quantity > 0 && editForm.wholesale_price > 0) {
+        payload.wholesale_price = editForm.wholesale_price;
+        payload.wholesale_min_quantity = editForm.wholesale_min_quantity;
+      } else {
+        payload.wholesale_price = null;
+        payload.wholesale_min_quantity = null;
+      }
+
+      const res = await fetch(`${API_URL}/produtos/${editingProduct.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || errorData.message || 'Erro ao editar produto');
+      }
+
+      showToast("Produto atualizado com sucesso!", "success");
+      setShowEditModal(false);
+      setEditingProduct(null);
+      fetchProducts();
+    } catch (err: any) {
+      showToast("Erro ao editar produto: " + err.message, "error");
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -94,6 +384,38 @@ export const useCatalogService = () => {
     handleKeyDown,
     openPaymentModal,
     setActiveTab,
-    setShowScaleModal
+    setShowScaleModal,
+    isAdmin,
+    loading,
+    error,
+    showImportModal,
+    setShowImportModal,
+    importFile,
+    setImportFile,
+    importLoading,
+    handleImportSubmit,
+    handleDownloadModel,
+    showCategoryModal,
+    setShowCategoryModal,
+    newCategoryName,
+    setNewCategoryName,
+    categoryLoading,
+    handleCreateCategory,
+    dbCategories,
+    itemsToDelete,
+    setItemsToDelete,
+    selectedProducts,
+    toggleProductSelection,
+    toggleSelectAll,
+    confirmDelete,
+    openEditModal,
+    showEditModal,
+    setShowEditModal,
+    editForm,
+    setEditForm,
+    editLoading,
+    handleSaveEdit,
+    showOnlyCritical,
+    setShowOnlyCritical
   };
 };

@@ -8,9 +8,10 @@ export interface Product {
   category: ProductCategory;
   categoryLabel: string;
   price: number;
+  wholesale_price?: number;
+  wholesale_min_quantity?: number;
   unit: 'UN' | 'KG';
   stock: number;
-  imageUrl: string;
   isWeighable?: boolean;
   lowStock?: boolean;
 }

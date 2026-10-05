@@ -24,6 +24,10 @@ export const CashMovementScreen: React.FC = () => {
     handleSaveOp,
     handleConfirmCloseTurno,
     handlePrintExtrato,
+    isAdmin,
+    mockRegisters,
+    selectedCaixaId,
+    setSelectedCaixaId
   } = useCashMovementService();
 
   return (
@@ -33,20 +37,40 @@ export const CashMovementScreen: React.FC = () => {
         {/* Top Shift Context Bar */}
         <div className={styles.topBar.wrapper}>
           <div className={styles.topBar.leftSection}>
-            <div className={styles.topBar.statusBadge}>
-              <span className={styles.topBar.statusIcon}>
-                account_balance_wallet
-              </span>
-              <span className={styles.topBar.statusText}>
-                CAIXA ABERTO
-              </span>
-            </div>
+            
+            {isAdmin ? (
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-slate-400">admin_panel_settings</span>
+                <select 
+                  className="bg-slate-50 border border-slate-200 text-slate-800 text-sm font-semibold rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  value={selectedCaixaId}
+                  onChange={(e) => setSelectedCaixaId(e.target.value)}
+                >
+                  <option value="todos">Visão Geral (Todos os Caixas)</option>
+                  <option value="local">Meu Caixa (#00) - Você</option>
+                  {mockRegisters.map(r => (
+                    <option key={r.id} value={r.id}>
+                      Caixa #{r.number} - {r.operator}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className={styles.topBar.statusBadge}>
+                <span className={styles.topBar.statusIcon}>account_balance_wallet</span>
+                <span className={styles.topBar.statusText}>CAIXA ABERTO</span>
+              </div>
+            )}
 
             <div className={styles.topBar.shiftInfo}>
               <span className={styles.topBar.shiftNumber}>TURNO #02</span>
               <span className={styles.topBar.shiftDot}>•</span>
               <span className={styles.topBar.operatorText}>
-                Operador: <strong className={styles.topBar.operatorName}>Juliana Costa (#4829)</strong>
+                Operador: <strong className={styles.topBar.operatorName}>
+                  {selectedCaixaId === 'todos' ? 'Múltiplos' : 
+                   selectedCaixaId === 'local' ? 'Você (Local)' : 
+                   mockRegisters.find(r => r.id === selectedCaixaId)?.operator}
+                </strong>
               </span>
             </div>
           </div>

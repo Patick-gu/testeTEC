@@ -8,16 +8,14 @@ export const HelpModal: React.FC = () => {
 
   const shortcuts = [
     { key: 'F1', desc: 'Ajuda / Atalhos do Sistema' },
-    { key: 'F2', desc: 'Consulta Rápida de Produtos' },
-    { key: 'F3', desc: 'Definir Quantidade' },
+    { key: 'F2', desc: 'Acessar Catálogo de Produtos' },
+    { key: 'F3', desc: 'Focar Barra de Busca no Caixa' },
     { key: 'F4', desc: 'Cancelar Último Item' },
     { key: 'F5', desc: 'Pagamento em Dinheiro Exato' },
     { key: 'F6', desc: 'Pagamento PIX Dinâmico' },
     { key: 'F8', desc: 'Sangria ou Suprimento' },
     { key: 'F9', desc: 'Identificar Cliente' },
     { key: 'F10', desc: 'Fechar Venda' },
-    { key: 'F11', desc: 'Venda em Espera' },
-    { key: 'F12', desc: 'Imprimir Cupom' },
     { key: 'ESC', desc: 'Retornar / Fechar Modais' },
     { key: 'ENTER', desc: 'Confirmar Ação' },
     { key: 'ALT+Num', desc: 'Filtrar Categorias' }
