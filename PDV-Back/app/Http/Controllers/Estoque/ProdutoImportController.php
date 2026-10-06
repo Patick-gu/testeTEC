@@ -9,10 +9,20 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
+/**
+ * @group Produtos Importação
+ *
+ * APIs utilitárias para importação em lote de produtos usando planilhas Excel.
+ */
 class ProdutoImportController
 {
     /**
-     * Download Excel Template
+     * Baixar Planilha Modelo
+     * 
+     * Gera e baixa uma planilha do Excel (.xlsx) contendo as colunas corretas para o cadastro em massa, 
+     * além de uma aba auxiliar com os IDs das categorias válidas.
+     * 
+     * @response 200 File Planilha Excel.
      */
     public function template()
     {
@@ -65,7 +75,16 @@ class ProdutoImportController
     }
 
     /**
-     * Import Products from Excel
+     * Importar Produtos do Excel
+     * 
+     * Recebe um arquivo `.xlsx` ou `.xls` e cadastra todos os produtos em lote.
+     * Se o código de barras (code) já existir, o produto será atualizado.
+     * 
+     * @bodyParam file file required O arquivo Excel (.xlsx ou .xls) preenchido no padrão.
+     * 
+     * @response 200 {
+     *   "message": "Importação concluída. 50 produtos processados."
+     * }
      */
     public function import(Request $request)
     {
@@ -73,9 +92,13 @@ class ProdutoImportController
             return response()->json(['error' => 'Acesso negado.'], 403);
         }
 
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls|max:2048'
-        ]);
+        try {
+            $dadosValidados = $request->validate([
+                'file' => 'required|mimes:xlsx,xls|max:2048'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        }
 
         $file = $request->file('file');
         

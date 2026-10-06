@@ -62,6 +62,8 @@ class UserController
             $user = $this->userService->createUser(auth()->user(), $dadosValidados);
 
             return response()->json($user, 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -100,6 +102,8 @@ class UserController
             $usuarios = $this->userService->getUsers(auth()->user(), $request->only(['name']));
 
             return response()->json($usuarios);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -127,6 +131,8 @@ class UserController
             $updatedUser = $this->userService->updateUser(auth()->user(), $user, $dadosValidados);
 
             return response()->json($updatedUser);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -149,6 +155,8 @@ class UserController
             return response()->json([
                 'message' => 'Usuário deletado com sucesso!',
             ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {

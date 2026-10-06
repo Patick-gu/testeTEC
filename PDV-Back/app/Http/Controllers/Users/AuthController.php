@@ -51,6 +51,8 @@ class AuthController extends Controller
             $resultado = $this->authService->login($credentials);
 
             return response()->json($resultado);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 401;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -71,6 +73,8 @@ class AuthController extends Controller
             $this->authService->logout();
 
             return response()->json(["message" => "Logout realizado com sucesso! Token invalidado."]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {

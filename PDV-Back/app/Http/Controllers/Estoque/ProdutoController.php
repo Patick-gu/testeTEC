@@ -8,6 +8,11 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @group Produtos
+ *
+ * APIs para gerenciamento do catálogo de produtos e estoque.
+ */
 class ProdutoController
 {
     protected ProdutoService $produtoService;
@@ -18,8 +23,13 @@ class ProdutoController
     }
 
     /**
-     * Listar Produtos com Busca e Filtros
-     * Acesso: Todos (User/Admin)
+     * Listar Produtos
+     * 
+     * Retorna a lista de produtos com suporte a busca e filtros por nome, código e categoria.
+     * 
+     * @queryParam name string Opcional. Nome do produto. Example: Coca-cola
+     * @queryParam code string Opcional. Código de barras ou SKU do produto. Example: 789102030
+     * @queryParam categoria_id string Opcional. Filtrar por UUID da categoria.
      */
     public function index(Request $request): JsonResponse
     {
@@ -29,7 +39,18 @@ class ProdutoController
     }
 
     /**
-     * Criar Produto (Somente Admin)
+     * Criar Produto
+     * 
+     * Registra um novo produto no estoque. Restrito a usuários com perfil de Admin.
+     *
+     * @bodyParam categoria_id string required UUID da Categoria do produto. Example: uuid-categoria
+     * @bodyParam code string required Código de barras único. Example: 789101112
+     * @bodyParam name string required Nome do produto. Example: Cerveja Lata 350ml
+     * @bodyParam price numeric required Preço de venda unitário. Example: 4.50
+     * @bodyParam wholesale_price numeric Preço de atacado (opcional). Example: 4.00
+     * @bodyParam wholesale_min_quantity integer Quantidade mínima para aplicar preço de atacado. Example: 12
+     * @bodyParam stock_quantity integer required Quantidade atual em estoque. Example: 100
+     * @bodyParam active boolean Define se o produto está ativo para venda. Example: true
      */
     public function store(Request $request): JsonResponse
     {
@@ -48,6 +69,8 @@ class ProdutoController
             $produto = $this->produtoService->createProduto(auth()->user(), $dadosValidados);
 
             return response()->json($produto, 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -58,7 +81,12 @@ class ProdutoController
     }
 
     /**
-     * Atualizar Produto (Somente Admin)
+     * Atualizar Produto
+     * 
+     * Modifica dados de um produto já cadastrado. Restrito a usuários com perfil de Admin.
+     * 
+     * @bodyParam price numeric Novo preço de venda. Example: 5.00
+     * @bodyParam stock_quantity integer Nova quantidade do estoque. Example: 80
      */
     public function update(Request $request, Produto $produto): JsonResponse
     {
@@ -82,6 +110,8 @@ class ProdutoController
             $produtoAtualizado = $this->produtoService->updateProduto(auth()->user(), $produto, $dadosValidados);
 
             return response()->json($produtoAtualizado);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -92,7 +122,9 @@ class ProdutoController
     }
 
     /**
-     * Deletar Produto - Soft Delete (Somente Admin)
+     * Deletar Produto
+     * 
+     * Move o produto para a lixeira (Soft Delete) impedindo novas vendas, mas preservando o histórico. Restrito a Admins.
      */
     public function destroy(Produto $produto): JsonResponse
     {
@@ -100,6 +132,8 @@ class ProdutoController
             $this->produtoService->deleteProduto(auth()->user(), $produto);
 
             return response()->json(["message" => "Produto movido para a lixeira (Soft Delete)!"], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {

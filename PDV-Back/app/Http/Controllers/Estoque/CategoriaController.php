@@ -8,6 +8,11 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @group Categorias
+ *
+ * APIs para gerenciamento de categorias de produtos.
+ */
 class CategoriaController
 {
     protected CategoriaService $categoriaService;
@@ -19,6 +24,17 @@ class CategoriaController
 
     /**
      * Listar Categorias
+     * 
+     * Retorna uma lista de todas as categorias cadastradas no sistema.
+     *
+     * @response 200 [
+     *   {
+     *     "id": "uuid-1234",
+     *     "name": "Bebidas",
+     *     "created_at": "2026-10-04T12:00:00.000000Z",
+     *     "updated_at": "2026-10-04T12:00:00.000000Z"
+     *   }
+     * ]
      */
     public function index(): JsonResponse
     {
@@ -27,7 +43,18 @@ class CategoriaController
     }
 
     /**
-     * Criar Categoria (Somente Admin)
+     * Criar Categoria
+     * 
+     * Registra uma nova categoria no sistema. Restrito a usuários com perfil de Admin.
+     *
+     * @bodyParam name string required Nome da categoria. Example: Bebidas
+     * 
+     * @response 201 {
+     *   "id": "uuid-1234",
+     *   "name": "Bebidas",
+     *   "created_at": "2026-10-04T12:00:00.000000Z",
+     *   "updated_at": "2026-10-04T12:00:00.000000Z"
+     * }
      */
     public function store(Request $request): JsonResponse
     {
@@ -39,6 +66,8 @@ class CategoriaController
             $categoria = $this->categoriaService->createCategoria(auth()->user(), $dadosValidados);
 
             return response()->json($categoria, 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -49,7 +78,11 @@ class CategoriaController
     }
 
     /**
-     * Atualizar Categoria (Somente Admin)
+     * Atualizar Categoria
+     * 
+     * Atualiza os dados de uma categoria existente. Restrito a usuários com perfil de Admin.
+     *
+     * @bodyParam name string required Novo nome da categoria. Example: Bebidas Frias
      */
     public function update(Request $request, Categoria $categoria): JsonResponse
     {
@@ -66,6 +99,8 @@ class CategoriaController
             $categoriaAtualizada = $this->categoriaService->updateCategoria(auth()->user(), $categoria, $dadosValidados);
 
             return response()->json($categoriaAtualizada);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -76,7 +111,13 @@ class CategoriaController
     }
 
     /**
-     * Deletar Categoria (Somente Admin)
+     * Deletar Categoria
+     * 
+     * Remove uma categoria permanentemente. Restrito a usuários com perfil de Admin.
+     * 
+     * @response 200 {
+     *   "message": "Categoria deletada com sucesso!"
+     * }
      */
     public function destroy(Categoria $categoria): JsonResponse
     {
@@ -84,6 +125,8 @@ class CategoriaController
             $this->categoriaService->deleteCategoria(auth()->user(), $categoria);
 
             return response()->json(["message" => "Categoria deletada com sucesso!"], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {

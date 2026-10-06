@@ -60,7 +60,7 @@ class SaleService
             ]);
 
             foreach ($data['items'] as $item) {
-                $produto = Produto::findOrFail($item['produto_id']);
+                $produto = Produto::lockForUpdate()->findOrFail($item['produto_id']);
                 
                 if (! $produto->active) {
                     throw new Exception("O produto {$produto->name} esta inativo", 400);
@@ -90,8 +90,8 @@ class SaleService
             }
 
             $amountPaid = $data['amount_paid'] ?? $totalVenda;
-            if ($data['payment_method'] === 'cash' && $amountPaid < $totalVenda) {
-                throw new Exception('O valor pago em dinheiro não pode ser menor que o total da venda.', 400);
+            if ($amountPaid < $totalVenda) {
+                throw new Exception('O valor pago não pode ser menor que o total da venda.', 400);
             }
             $changeReturned = max(0, $amountPaid - $totalVenda);
 

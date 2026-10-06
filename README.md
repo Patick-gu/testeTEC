@@ -1,63 +1,56 @@
-# Teste Prático — Frente de Caixa (PDV)
+# 🛒 Sistema Completo de Ponto de Venda (PDV) - Frente de Caixa
 
-## Objetivo
-Construir uma frente de caixa simples, com um backend que sirva os dados e um
-frontend para o operador usar no dia a dia.
+Este é o repositório principal do Sistema de Frente de Caixa (PDV), desenvolvido como solução completa *Full Stack* para a gestão de vendas, controle de turnos/caixas e inventário em tempo real.
 
-Queremos entender como você pensa, organiza o código e resolve problemas do
-mundo real. Não existe um jeito único de fazer: tome as decisões que fizerem
-sentido e saiba explicá-las depois.
+O projeto está dividido em dois diretórios:
+- **`PDV-Back/`**: API RESTful robusta desenvolvida em **Laravel 11** e PHP 8.
+- **`PDV-Frontend/`**: Interface de alta reatividade desenvolvida com **React 19, TypeScript e TailwindCSS**.
 
-## O que construir
-Uma tela de PDV onde o operador consegue:
-- Buscar produtos (por nome ou código).
-- Adicionar produtos ao carrinho, ajustar quantidade e remover itens.
-- Ver o total da venda sendo calculado enquanto monta o carrinho.
-- Finalizar a venda informando a forma de pagamento.
-- No pagamento em dinheiro, informar o valor recebido e ver o troco.
-- Consultar uma venda já finalizada (comprovante/resumo).
+---
 
-O backend deve expor os dados e receber as vendas. O frontend deve consumir
-esse backend.
+## 🚀 Como testar e executar a aplicação
 
-## Regras de negócio
-- O total e os subtotais da venda são confiáveis: considere que o cliente
-  pode enviar qualquer coisa, então o valor final precisa ser garantido pela
-  sua aplicação.
-- O preço do produto no momento da venda deve ficar registrado na venda,
-  mesmo que o preço do produto mude depois.
-- Uma venda tem um ou mais itens.
-- No pagamento em dinheiro, o valor recebido não pode ser menor que o total,
-  e o troco é a diferença.
-- Produtos que não estão mais disponíveis não devem entrar em novas vendas.
-- Uma venda finalizada não deve ser alterada.
+Para rodar todo o ecossistema localmente, siga as instruções específicas dentro de cada pasta:
 
-## Stack
-- Backend: Laravel.
-- Frontend: React. (com TypeScript é bem-vindo, mas não obrigatório)
+1. **[Backend (Laravel)](./PDV-Back/README.md)**: Instale as dependências via Composer, configure o banco de dados e rode `php artisan migrate:fresh --seed` para popular os produtos e os usuários de teste na sua máquina.
+2. **[Frontend (React)](./PDV-Frontend/README.md)**: Instale os pacotes via NPM e rode a interface com o Vite para interagir com o terminal de vendas.
 
-Use o que você já conhece de cada stack. Bibliotecas extras são bem-vindas,
-desde que justificadas.
+*(Recomendamos abrir 2 terminais separados no seu sistema operacional, um para a API do backend na porta 8001 e outro para rodar o frontend na porta 3000).*
 
-## O que avaliaremos
-- **Backend:** como você modela os dados, garante as regras de negócio,
-  valida as entradas e organiza o código (rotas, controllers, serviços,
-  testes).
-- **Frontend:** componentização, consumo da API, estados de carregamento /
-  erro / vazio, tratamento de falhas, cálculo do troco e usabilidade.
-- **Código:** legibilidade, nomes claros, organização e segurança básica.
+---
 
-## Entrega
-- Repositório Git com o projeto.
-- README explicando como rodar (backend e frontend) e as decisões tomadas.
-- Massa de dados de exemplo (produtos) para testar sem digitar tudo na mão.
+## 🧠 Principais Decisões Técnicas e de Engenharia (Full Stack)
 
-## Prazo
-1 a 5 dias. Não precisa entregar tudo: prefira um escopo menor, bem feito e
-explicado, do que muita coisa inacabada.
+A arquitetura do projeto foi pensada não apenas para "funcionar", mas para se comportar como um software maduro, pronto para produção e seguro contra falhas críticas comuns em sistemas de varejo.
 
-## Bônus (opcional)
-- Testes automatizados das regras principais.
-- Login/autenticação.
-- Histórico de vendas do dia.
-- Cuidados com estoque.
+Abaixo, os grandes destaques e decisões tomadas durante a construção:
+
+### 1. Prevenção de Condições de Corrida (Race Condition) no Estoque
+Em um cenário onde dois caixas diferentes tentam vender a última unidade de um produto no exato mesmo milissegundo, a maioria dos sistemas falha deixando o estoque negativo.
+Para evitar isso, isolamos a baixa de estoque do backend dentro de uma **Transaction (Transação de Banco de Dados)** com **Bloqueio Pessimista (`lockForUpdate()`)**. Isso obriga o banco a criar uma fila, garantindo matematicamente que o estoque nunca caia para menos de zero.
+*↳ Validado por meio de testes automatizados e por um script oficial de teste de estresse no k6 incluso no projeto.*
+
+### 2. Guardião de Turnos de Caixa (Shift Guard)
+Para obrigar o operador a declarar um fundo de troco e prestar contas no final do dia, o sistema possui a entidade rigorosa de `Turno`.
+- No Frontend, criamos o componente genérico `<ShiftGuard />` que "abraça" todas as rotas sensíveis, impedindo visualmente o acesso de funcionários sem caixa aberto.
+- No Backend, a lógica transacional proíbe que qualquer venda passe se o Token JWT enviado não estiver vinculado a um caixa com o status `aberto`.
+
+### 3. Backend como a Única "Fonte da Verdade" Financeira
+Sistemas de frente de caixa nunca devem confiar em cálculos provenientes de clientes Web ou Mobile. Todo o cálculo do total de venda (incluindo descontos por preço de atacado) e do troco não é aceito diretamente do Front. O Backend apenas recebe a **Lista de Itens** e o **Valor Entregue pelo Cliente em Dinheiro**, reprocessa todos os preços com base na tabela do dia e recusa a venda se identificar tentativas de burla.
+
+### 4. Preservação de Preços Históricos e Soft Deletes
+Quando um produto é vendido, o sistema copia fisicamente o valor vigente daquele minuto (`unit_price`) para o item do comprovante (`SaleItem`). Isso significa que a inflação no catálogo (se o preço do produto subir no dia seguinte) não quebrará os relatórios e extratos do mês passado. Além disso, excluímos produtos via `SoftDeletes` lógicos para preservar os cupons atrelados a ele para sempre.
+
+### 5. Separação Estrita de Responsabilidades (Design Patterns)
+- **Frontend**: Usamos a *Context API* nativa do React em vez do Redux para evitar complexidades desnecessárias e isolar bem os domínios (Carrinho, Fluxo de Caixa, Autenticação). Cada tela tem seu respectivo `service.ts` blindando os componentes da requisição HTTP bruta.
+- **Backend**: Implementamos a camada de *Services* (`SaleService`, `ProdutoService`), retirando completamente a lógica de negócios dos *Controllers*. Os controladores assumiram apenas a responsabilidade limpa de despachar e responder às rotas. A documentação da API foi padronizada através de PHPDoc *Scribe-style*.
+
+### 6. Testes Automatizados e Resiliência
+Para garantir a confiança na entrega e estabilidade a cada alteração, a aplicação contempla:
+- Bateria de testes de Integração (Feature Tests) cobrindo regras sensíveis via PHPUnit.
+- Proteção nativa de *Rate Limit* (Anti-Força-Bruta) na Autenticação.
+- Robô de Teste de Estresse incluso no diretório ([k6/load-tests](./PDV-Back/tests/load-tests/README.md)) para validação do bloqueio de estoque.
+
+---
+
+Sinta-se à vontade para explorar o código! Cada pasta principal (Front e Back) possui seu próprio README detalhando configurações específicas de sua tecnologia e bibliotecas.

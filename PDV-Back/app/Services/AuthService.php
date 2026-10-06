@@ -8,6 +8,8 @@ class AuthService
 {
     public function login(array $credentials)
     {
+        $credentials['status'] = 'active';
+
         if (!$token = auth('api')->attempt($credentials)) {
             throw new Exception('Unauthorized', 401);
         }

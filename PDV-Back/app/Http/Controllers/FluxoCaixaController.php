@@ -7,6 +7,11 @@ use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * @group Fluxo de Caixa
+ *
+ * APIs para o registro de movimentações no caixa (Sangrias e Suprimentos) e visualização de resumos financeiros.
+ */
 class FluxoCaixaController
 {
     protected FluxoCaixaService $fluxoCaixaService;
@@ -17,14 +22,17 @@ class FluxoCaixaController
     }
 
     /**
-     * Get the consolidated status of the cash drawer for the current user today.
-     * Deprecated for 'statusAll' or 'Turno-based' flow, but updated just in case.
+     * Status do Caixa do Operador
+     * 
+     * Retorna os totais consolidados de movimentações no caixa atual do operador.
      */
     public function status(Request $request): JsonResponse
     {
         try {
             $status = $this->fluxoCaixaService->getStatus($request->user());
             return response()->json($status);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 403;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
@@ -34,12 +42,22 @@ class FluxoCaixaController
         }
     }
 
+    /**
+     * Status de Todos os Caixas (Admin)
+     * 
+     * Retorna os totais de vendas e transações consolidadas da empresa no dia.
+     */
     public function statusAll(): JsonResponse
     {
         $statusAll = $this->fluxoCaixaService->getStatusAll();
         return response()->json($statusAll);
     }
 
+    /**
+     * Extrato de Movimentações
+     * 
+     * Lista todas as entradas e saídas (vendas, sangrias, suprimentos, aberturas).
+     */
     public function index(Request $request): JsonResponse
     {
         $movimentacoes = $this->fluxoCaixaService->getMovimentacoes($request->user());
@@ -47,12 +65,17 @@ class FluxoCaixaController
     }
 
     /**
-     * Store a newly created cash movement (Sangria or Suprimento).
+     * Registrar Movimentação Avulsa
+     * 
+     * Realiza uma "Sangria" (retirada) ou "Suprimento" (reforço) do gaveteiro no turno ativo.
+     * 
+     * @bodyParam type string required O tipo de movimentação ('sangria' ou 'suprimento'). Example: sangria
+     * @bodyParam valor numeric required Valor movimentado. Example: 150.00
+     * @bodyParam descricao string Motivo da movimentação. Example: Retirada de dinheiro para carro forte
      */
     public function store(Request $request): JsonResponse
     {
         try {
-            // Validar campos
             $dadosValidados = $request->validate([
                 'type' => 'required|in:sangria,suprimento',
                 'valor' => 'required|numeric|min:0.01',
@@ -67,6 +90,8 @@ class FluxoCaixaController
                 'message' => 'Movimentação registrada com sucesso.',
                 'data' => $movimentacao,
             ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             $statusCode = $e->getCode() ?: 400;
             if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
