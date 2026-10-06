@@ -30,7 +30,7 @@ export const ThermalReceiptModal: React.FC = () => {
 
         <div className="p-5 bg-white border border-slate-200/60 rounded-xl font-mono-num text-[11px] text-slate-800 select-all mb-4">
           <div className="text-center pb-3 border-b border-dashed border-slate-200">
-            <div className="font-bold text-sm text-slate-900 mb-1">SUPERMERCADO NEXUS LTDA</div>
+            <div className="font-bold text-sm text-slate-900 mb-1">KASTER LTDA</div>
             <div className="text-slate-500">CNPJ: 12.345.678/0001-90</div>
             <div className="text-slate-500">AV. PAULISTA, 1000 - SÃO PAULO/SP</div>
             <div className="font-bold mt-2 text-slate-800">

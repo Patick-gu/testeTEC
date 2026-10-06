@@ -78,11 +78,19 @@ export const PaymentModal: React.FC = () => {
         e.preventDefault();
         const prevIndex = (currentIndex - 1 + methods.length) % methods.length;
         setActiveMethod(methods[prevIndex]);
+      } else if (e.key === 'Enter') {
+        // Se o foco não estiver em um input (como o de valor em dinheiro), aciona o botão
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'BUTTON') {
+          e.preventDefault();
+          handleConfirmFinalPayment();
+        }
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPaymentModal, activeMethod]);
 
   if (!showPaymentModal) return null;
@@ -161,7 +169,7 @@ export const PaymentModal: React.FC = () => {
   };
 
   const handleCashKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'F5') {
+    if (e.key === 'F7') {
       e.preventDefault();
       handleExactCash();
     } else if (e.key === 'Enter') {
@@ -405,7 +413,7 @@ export const PaymentModal: React.FC = () => {
                     onFocus={(e) => { e.target.select(); setIsCleanInput(true); }}
                     className="w-full h-16 text-center text-3xl font-semibold bg-slate-50 border border-slate-200/60 focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 rounded-xl transition-all outline-none"
                   />
-                  <p className="text-[10px] text-slate-400 text-center mt-2">Pressione [F5] para valor exato</p>
+                  <p className="text-[10px] text-slate-400 text-center mt-2">Pressione [F7] para valor exato</p>
                 </div>
 
                 {/* Troco */}

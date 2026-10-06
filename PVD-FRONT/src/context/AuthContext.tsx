@@ -24,7 +24,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   useEffect(() => {
     if (token) {
       try {
-        const decoded = jwtDecode<UserPayload>(token);
+        const decoded = jwtDecode<UserPayload & { exp?: number }>(token);
+        if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+          throw new Error('Token expired');
+        }
         setUser(decoded);
         localStorage.setItem('token', token);
       } catch (err) {

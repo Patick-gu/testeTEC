@@ -44,7 +44,8 @@ export const useCatalogService = () => {
     setError('');
     try {
       const res = await fetch(`${API_URL}/produtos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Falha ao buscar produtos');
       const data = await res.json();
@@ -86,6 +87,7 @@ export const useCatalogService = () => {
       const res = await fetch(`${API_URL}/produtos/import`, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`
           // FormData automatiza o Content-Type para multipart/form-data
         },
@@ -112,6 +114,7 @@ export const useCatalogService = () => {
     try {
       const res = await fetch(`${API_URL}/produtos/import/template`, {
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
@@ -147,7 +150,8 @@ export const useCatalogService = () => {
   const fetchCategories = async () => {
     try {
       const res = await fetch(`${API_URL}/categorias`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -167,6 +171,7 @@ export const useCatalogService = () => {
       const res = await fetch(`${API_URL}/categorias`, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -292,7 +297,8 @@ export const useCatalogService = () => {
       await Promise.all(itemsToDelete.map(async (id) => {
         const res = await fetch(`${API_URL}/produtos/${id}`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: {
+          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Falha em um ou mais itens');
       }));
@@ -346,6 +352,7 @@ export const useCatalogService = () => {
       const res = await fetch(`${API_URL}/produtos/${editingProduct.id}`, {
         method: 'PUT',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -365,6 +372,64 @@ export const useCatalogService = () => {
       showToast("Erro ao editar produto: " + err.message, "error");
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ 
+    name: '', code: '', price: 0, stock: 0, category: '', 
+    wholesale_price: 0, wholesale_min_quantity: 0 
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const openCreateModal = () => {
+    setCreateForm({
+      name: '', code: '', price: 0, stock: 0, category: '', 
+      wholesale_price: 0, wholesale_min_quantity: 0 
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleSaveCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateLoading(true);
+
+    try {
+      const payload: any = {
+        name: createForm.name,
+        code: createForm.code,
+        price: createForm.price,
+        stock_quantity: createForm.stock,
+        categoria_id: createForm.category
+      };
+
+      if (createForm.wholesale_min_quantity > 0 && createForm.wholesale_price > 0) {
+        payload.wholesale_price = createForm.wholesale_price;
+        payload.wholesale_min_quantity = createForm.wholesale_min_quantity;
+      }
+
+      const res = await fetch(`${API_URL}/produtos`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || errorData.message || 'Erro ao criar produto');
+      }
+
+      showToast("Produto criado com sucesso!", "success");
+      setShowCreateModal(false);
+      fetchProducts();
+    } catch (err: any) {
+      showToast("Erro ao criar produto: " + err.message, "error");
+    } finally {
+      setCreateLoading(false);
     }
   };
 
@@ -416,6 +481,13 @@ export const useCatalogService = () => {
     editLoading,
     handleSaveEdit,
     showOnlyCritical,
-    setShowOnlyCritical
+    setShowOnlyCritical,
+    showCreateModal,
+    setShowCreateModal,
+    createForm,
+    setCreateForm,
+    createLoading,
+    openCreateModal,
+    handleSaveCreate
   };
 };

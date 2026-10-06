@@ -38,6 +38,7 @@ interface PdvContextType {
 
   // Cash movement & ledger
   cashDrawer: {
+    openedAt: string;
     openingFund: number;
     totalSales: number;
     salesCount: number;
@@ -47,8 +48,8 @@ interface PdvContextType {
     cardCredit: number;
     movements: CashMovementRecord[];
   };
-  addCashMovement: (type: 'sangria' | 'suprimento', amount: number, reason: string, auth: string) => Promise<boolean>;
-  closeTurno: () => void;
+  addCashMovement: (type: 'sangria' | 'suprimento', amount: number, reason: string, auth?: string, targetTurnoId?: string) => Promise<boolean>;
+  closeTurno: (blindCount: number) => Promise<boolean>;
 
   // Checkout
   completeSale: (payments: AppliedPayment[], troco: number) => Promise<void>;
@@ -89,7 +90,8 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!token) return;
     // Fetch movements
     fetch(`${API_URL}/caixa/movimentacoes`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: {
+          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
     .then((data: any[]) => {
@@ -100,12 +102,13 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return {
             id: item.id,
             time: time,
-            type: item.type as 'sangria' | 'suprimento',
-            title: isSangria ? 'Sangria de Caixa' : 'Suprimento',
-            documentRef: `Recibo ${isSangria ? 'SG' : 'SP'}-${item.id.substring(0,4)}`,
+            type: item.type,
+            paymentMethod: item.payment_method,
+            title: item.type === 'sangria' ? 'Sangria de Caixa' : item.type === 'suprimento' ? 'Suprimento' : item.type === 'entrada' ? 'Venda PDV' : 'Abertura',
+            documentRef: `Recibo ${item.type === 'sangria' ? 'SG' : item.type === 'suprimento' ? 'SP' : 'VD'}-${item.id.substring(0,4)}`,
             reason: item.descricao,
-            operator: user?.name || 'Operador',
-            authorizer: 'Supervisão',
+            operator: user?.name || 'Sistema',
+            authorizer: user?.role === 'admin' ? 'Supervisor' : 'Operador',
             amount: Number(item.valor)
           };
         });
@@ -116,13 +119,15 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Fetch status
     fetch(`${API_URL}/caixa/status`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: {
+          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
     .then((data: any) => {
       if (data && typeof data.totalSales !== 'undefined') {
         setCashDrawer(prev => ({
           ...prev,
+          openedAt: data.openedAt || '',
           openingFund: data.openingFund,
           totalSales: data.totalSales,
           salesCount: data.salesCount,
@@ -137,17 +142,8 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [token]);
   const [activeTab, setActiveTab] = useState<'terminal' | 'catalogo' | 'fechamento' | 'caixa' | 'equipe'>('terminal');
   
-  // Cart starts with mock data for demonstration
-  const [cart, setCart] = useState<CartItem[]>(
-    INITIAL_CART_ITEMS.map((item, index) => ({
-      id: `cart-mock-${index}`,
-      product: item.product as Product,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      subtotal: Number((item.quantity * item.unitPrice).toFixed(2)),
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false })
-    }))
-  );
+  // Cart starts empty for real usage
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   const [quantityMultiplier, setQuantityMultiplier] = useState<number>(1);
   const [saleNumber, setSaleNumber] = useState<string>('04928');
@@ -219,6 +215,7 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     cardCredit: number;
     movements: CashMovementRecord[];
   }>({
+    openedAt: '',
     openingFund: 0,
     totalSales: 0,
     salesCount: 0,
@@ -360,56 +357,23 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Venda ${found.code} reaberta no caixa`);
   };
 
-  const addCashMovement = (type: 'sangria' | 'suprimento', amount: number, reason: string, auth: string) => {
-    const nowStr = new Date().toLocaleTimeString('pt-BR', { hour12: false });
-    const isSangria = type === 'sangria';
-    
-    const newMovement: CashMovementRecord = {
-      id: `mov-${Date.now()}`,
-      time: nowStr,
-      type,
-      title: isSangria ? 'Sangria de Caixa' : 'Suprimento',
-      documentRef: `Recibo manual #${isSangria ? 'SG' : 'SP'}-${Math.floor(1000 + Math.random() * 9000)}`,
-      reason: reason || (isSangria ? 'Transferência de segurança para Cofre' : 'Reforço de Troco Miúdo'),
-      operator: 'Juliana Costa',
-      authorizer: auth || 'Supervisor Autorizado',
-      amount
-    };
-
-    setCashDrawer((prev) => {
-      const newCash = isSangria ? prev.cashInDrawer - amount : prev.cashInDrawer + amount;
-      return {
-        ...prev,
-        cashInDrawer: Number(newCash.toFixed(2)),
-        movements: [newMovement, ...prev.movements]
-      };
-    });
-
-    playBeep('drawer');
-    showToast(`${isSangria ? 'Sangria' : 'Suprimento'} de R$ ${amount.toFixed(2).replace('.', ',')} efetuado com sucesso!`);
-  };
-
-  const closeTurno = () => {
-    playBeep('success');
-    showToast('Turno encerrado. Redução Z emitida na impressora fiscal.');
-  };
-
-  const completeSale = async (payments: AppliedPayment[], troco: number) => {
+  const addCashMovement = async (type: 'sangria' | 'suprimento', amount: number, reason: string, auth?: string, targetTurnoId?: string) => {
     try {
-      const pMethod = payments[0]?.method;
-      const paymentMethodStr = pMethod === 'credit' ? 'credit_card' : pMethod === 'debit' ? 'debit_card' : pMethod || 'cash';
-      
-      const payload = {
-        payment_method: paymentMethodStr,
-        items: cart.map(item => ({
-          produto_id: item.product.id,
-          quantity: item.quantity
-        }))
+      const isSangria = type === 'sangria';
+      const payload: any = {
+        type: type,
+        valor: amount,
+        descricao: reason || (isSangria ? 'Transferência de segurança para Cofre' : 'Reforço de Troco Miúdo')
       };
+      
+      if (targetTurnoId) {
+        payload.turno_id = targetTurnoId;
+      }
 
-      const res = await fetch(`${API_URL}/sales`, {
+      const res = await fetch(`${API_URL}/caixa/movimentacoes`, {
         method: 'POST',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -419,7 +383,111 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const data = await res.json();
 
       if (!res.ok) {
-        showToast(`Erro na venda: ${data.erro || 'Falha ao processar'}`);
+        showToast(`Erro: ${data.erro || 'Falha ao registrar movimentação'}`);
+        return false;
+      }
+
+      // Add to local state based on the created record from backend
+      const item = data.data; // assuming backend returns { status: 'sucesso', data: { id, type, valor, descricao, created_at ... } }
+      const nowStr = item.created_at ? new Date(item.created_at).toLocaleTimeString('pt-BR', { hour12: false }) : new Date().toLocaleTimeString('pt-BR', { hour12: false });
+      
+      const newMovement: CashMovementRecord = {
+        id: item.id || `mov-${Date.now()}`,
+        time: nowStr,
+        type,
+        title: isSangria ? 'Sangria de Caixa' : 'Suprimento',
+        documentRef: `Recibo ${isSangria ? 'SG' : 'SP'}-${item.id ? item.id.substring(0,4) : Math.floor(1000 + Math.random() * 9000)}`,
+        reason: item.descricao || payload.descricao,
+        operator: user?.name || 'Sistema',
+        authorizer: user?.role === 'admin' ? 'Supervisor' : 'Operador',
+        amount: Number(item.valor || amount)
+      };
+
+      setCashDrawer((prev) => {
+        const newCash = isSangria ? prev.cashInDrawer - amount : prev.cashInDrawer + amount;
+        return {
+          ...prev,
+          cashInDrawer: Number(newCash.toFixed(2)),
+          movements: [newMovement, ...prev.movements]
+        };
+      });
+
+      playBeep('drawer');
+      showToast(`${isSangria ? 'Sangria' : 'Suprimento'} de R$ ${amount.toFixed(2).replace('.', ',')} efetuado com sucesso!`);
+      return true;
+    } catch (err) {
+      console.error(err);
+      showToast('Erro de conexão ao registrar movimentação.');
+      return false;
+    }
+  };
+
+  const closeTurno = async (blindCount: number) => {
+    try {
+      const res = await fetch(`${API_URL}/caixa/fechar`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ valor_fechamento_informado: blindCount })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Erro ao fechar caixa');
+        return false;
+      }
+
+      playBeep('success');
+      showToast('Turno encerrado com sucesso. Redução Z emitida.');
+      
+      // Force reload to go back to Shift Guard
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      return true;
+    } catch (err) {
+      showToast('Erro de conexão ao fechar o caixa.');
+      return false;
+    }
+  };
+
+  const completeSale = async (payments: AppliedPayment[], troco: number) => {
+    try {
+      const pMethod = payments[0]?.method;
+      const paymentMethodStr = pMethod === 'credit' ? 'credit_card' : pMethod === 'debit' ? 'debit_card' : pMethod || 'cash';
+      
+      const payload: any = {
+        payment_method: paymentMethodStr,
+        items: cart.map(item => ({
+          produto_id: item.product.id,
+          quantity: item.quantity
+        }))
+      };
+
+      if (paymentMethodStr === 'cash') {
+        payload.amount_paid = total + troco;
+      }
+
+      const res = await fetch(`${API_URL}/sales`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        let errorMsg = data.erro || data.message || 'Falha ao processar';
+        if (data.errors) {
+            errorMsg = Object.values(data.errors).flat().join(', ');
+        }
+        showToast(`Erro na venda: ${errorMsg}`);
         return; // Block checkout, don't close modal
       }
 
@@ -436,7 +504,7 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         payments.forEach((p) => {
           if (p.method === 'cash') {
-            addCash += (p.amount - troco);
+            addCash += p.amount;
           } else if (p.method === 'pix') {
             addPix += p.amount;
           } else if (p.method === 'debit') {
@@ -453,7 +521,8 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           cashInDrawer: Number((prev.cashInDrawer + addCash).toFixed(2)),
           pixTotal: Number((prev.pixTotal + addPix).toFixed(2)),
           cardDebit: Number((prev.cardDebit + addDebit).toFixed(2)),
-          cardCredit: Number((prev.cardCredit + addCredit).toFixed(2))
+          cardCredit: Number((prev.cardCredit + addCredit).toFixed(2)), movements: [ { id: Math.floor(Math.random() * 100000).toString(), time: nowStr, type: "entrada",
+              paymentMethod: paymentMethodStr, title: "Venda PDV", documentRef: "Recibo VD-" + saleNumber, reason: "Venda PDV #" + saleNumber, operator: user?.name || "Operador", authorizer: "Operador", amount: saleTotal }, ...prev.movements ]
         };
       });
 
@@ -498,12 +567,16 @@ export const PdvProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setShowHelpModal(true);
       } else if (e.key === 'F2') {
         e.preventDefault();
-        setActiveTab('catalogo');
+        if (user?.role === 'admin') setActiveTab('catalogo');
       } else if (e.key === 'F8') {
         e.preventDefault();
         setActiveTab('caixa');
       } else if (e.key === 'F10') {
         e.preventDefault();
+        if (user?.role === 'admin') {
+          showToast('Admins não podem fazer vendas. Use um operador.');
+          return;
+        }
         if (cart.length > 0) {
           startCheckout('cash');
         } else {

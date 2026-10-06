@@ -155,7 +155,7 @@ export const usePaymentService = () => {
   };
 
   const handleCashKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'F5') {
+    if (e.key === 'F7') {
       e.preventDefault();
       handleExactCash();
     } else if (e.key === 'Enter') {

@@ -2,14 +2,13 @@
 
 namespace Tests\Feature\Sales;
 
-use App\Models\Produto;
-use App\Models\User;
-use App\Models\Sale;
-use App\Models\FluxoCaixa;
 use App\Models\Categoria;
+use App\Models\Produto;
+use App\Models\Turno;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use Tests\TestCase;
 
 class SaleStoreTest extends TestCase
 {
@@ -24,9 +23,16 @@ class SaleStoreTest extends TestCase
 
     private function authenticate()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'user']);
+        Turno::create([
+            'user_id' => $user->id,
+            'status' => 'aberto',
+            'data_abertura' => now(),
+            'valor_abertura' => 100.00,
+        ]);
         $token = JWTAuth::fromUser($user);
-        return $this->withHeader('Authorization', 'Bearer ' . $token)->actingAs($user);
+
+        return $this->withHeader('Authorization', 'Bearer '.$token)->actingAs($user);
     }
 
     public function test_it_creates_a_sale_successfully_and_decrements_stock()
@@ -36,7 +42,7 @@ class SaleStoreTest extends TestCase
             'price' => 100.00,
             'stock_quantity' => 10,
             'wholesale_min_quantity' => 5,
-            'wholesale_price' => 80.00
+            'wholesale_price' => 80.00,
         ]);
 
         $response = $this->authenticate()->postJson('/api/sales', [
@@ -44,9 +50,9 @@ class SaleStoreTest extends TestCase
             'items' => [
                 [
                     'produto_id' => $produto->id,
-                    'quantity' => 2 // Abaixo do atacado, preço normal
-                ]
-            ]
+                    'quantity' => 2, // Abaixo do atacado, preço normal
+                ],
+            ],
         ]);
 
         $response->assertStatus(200);
@@ -80,7 +86,7 @@ class SaleStoreTest extends TestCase
             'price' => 100.00,
             'stock_quantity' => 20,
             'wholesale_min_quantity' => 5,
-            'wholesale_price' => 80.00
+            'wholesale_price' => 80.00,
         ]);
 
         $response = $this->authenticate()->postJson('/api/sales', [
@@ -88,9 +94,9 @@ class SaleStoreTest extends TestCase
             'items' => [
                 [
                     'produto_id' => $produto->id,
-                    'quantity' => 6 // Acima do atacado, preço 80
-                ]
-            ]
+                    'quantity' => 6, // Acima do atacado, preço 80
+                ],
+            ],
         ]);
 
         $response->assertStatus(200);
@@ -116,9 +122,9 @@ class SaleStoreTest extends TestCase
             'items' => [
                 [
                     'produto_id' => $produto->id,
-                    'quantity' => 5 // Maior que o estoque
-                ]
-            ]
+                    'quantity' => 5, // Maior que o estoque
+                ],
+            ],
         ]);
 
         // Deve falhar com 400 por causa da exceção

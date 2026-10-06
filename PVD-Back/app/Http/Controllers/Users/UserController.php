@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Users;
 
 use App\Models\User;
+use App\Services\UserService;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
 /**
@@ -14,6 +16,13 @@ use Illuminate\Validation\Rule;
  */
 class UserController
 {
+    protected UserService $userService;
+
+    public function __construct(UserService $userService)
+    {
+        $this->userService = $userService;
+    }
+
     /**
      * Criar novo usuário
      *
@@ -39,22 +48,29 @@ class UserController
      *   }
      * }
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $dadosValidados = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
-            'role'=> 'required|in:admin,user', // Obriga passar e apenas admin ou user
-            'status'=> 'sometimes|in:active,off' // Opcional, permite criar já inativo se quiser
-        ]);
+        try {
+            $dadosValidados = $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|min:6',
+                'role' => 'required|in:admin,user',
+                'status' => 'sometimes|in:active,off',
+            ]);
 
-        $dadosValidados['password'] = Hash::make($dadosValidados['password']);
+            $user = $this->userService->createUser(auth()->user(), $dadosValidados);
 
-        $user = User::create($dadosValidados);
-
-        return response()->json($user, 201);
+            return response()->json($user, 201);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 400;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
     }
+
     /**
      * Listar ou Buscar Usuários
      *
@@ -78,47 +94,67 @@ class UserController
      *   "message": "Unauthenticated."
      * }
      */
-    public function index(Request $request){
-        $query = User::query();
-        if($request->has('name')){
-            $query ->where('name', 'ilike', '%' . $request->name . '%');
-        }
+    public function index(Request $request): JsonResponse
+    {
+        try {
+            $usuarios = $this->userService->getUsers(auth()->user(), $request->only(['name']));
 
-        $usuario = $query->get();
-        return response()->json($usuario);
-    }
-    public function update(Request $request, User $user){
-        $dadosValidados = $request->validate([
-            'name' => 'sometimes|string|max:255', // Troquei de required para sometimes (opcional no update)
-            'email' => [
-                'sometimes',
-                'email',
-                \Illuminate\Validation\Rule::unique('users')->ignore($user->id),
-            ],
-            'password' => 'sometimes|min:6',
-            'role' => 'sometimes|in:admin,user', // Se mandar, atualiza. Se não mandar, mantém a antiga.
-            'status'=> 'sometimes|in:active,off',
-        ]);
-        
-        if ($request->has('password')) {
-            $dadosValidados['password'] = Hash::make($dadosValidados['password']);
+            return response()->json($usuarios);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 400;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
         }
-        $user->update($dadosValidados);
-
-        return response()->json($user);
     }
+
+    public function update(Request $request, User $user): JsonResponse
+    {
+        try {
+            $dadosValidados = $request->validate([
+                'name' => 'sometimes|string|max:255',
+                'email' => [
+                    'sometimes',
+                    'email',
+                    Rule::unique('users')->ignore($user->id),
+                ],
+                'password' => 'sometimes|min:6',
+                'role' => 'sometimes|in:admin,user',
+                'status' => 'sometimes|in:active,off',
+            ]);
+
+            $updatedUser = $this->userService->updateUser(auth()->user(), $user, $dadosValidados);
+
+            return response()->json($updatedUser);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 400;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
+    }
+
     /**
      * Deletar Usuário
      *
      * Remove um atendente do sistema pelo seu UUID.
      */
-    public function destroy(User $user)
+    public function destroy(User $user): JsonResponse
     {
-        $user->delete();
+        try {
+            $this->userService->deleteUser(auth()->user(), $user);
 
-        return response()->json([
-            "message" => "Usuário deletado com sucesso!"
-        ], 200);
+            return response()->json([
+                'message' => 'Usuário deletado com sucesso!',
+            ], 200);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 400;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
     }
-
 }

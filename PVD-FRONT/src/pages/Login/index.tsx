@@ -18,7 +18,8 @@ export const LoginScreen: React.FC = () => {
       const apiUrl = import.meta.env.VITE_API_URL as string;
       const res = await fetch(`${apiUrl}/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Accept': 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
       

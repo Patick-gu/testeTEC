@@ -35,7 +35,7 @@ export const Header: React.FC = () => {
     { id: 'terminal' as const, label: 'Frente de Caixa', roles: ['user'] },
     { id: 'catalogo' as const, label: 'Catálogo de Produtos', roles: ['admin'] },
     { id: 'equipe' as const, label: 'Gestão de Equipe', roles: ['admin'] },
-    { id: 'caixa' as const, label: 'Fluxo Financeiro', roles: ['admin'] },
+    { id: 'caixa' as const, label: 'Fluxo Financeiro', roles: ['admin', 'user'] },
   ];
 
   const tabs = allTabs.filter(tab => tab.roles.includes(user?.role || ''));

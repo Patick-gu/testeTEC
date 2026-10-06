@@ -1,25 +1,26 @@
 import React from 'react';
 import { usePdv } from '../../context/PdvContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const HelpModal: React.FC = () => {
   const { showHelpModal, setShowHelpModal } = usePdv();
+  const { user } = useAuth(); // Import useAuth to check user role
 
   if (!showHelpModal) return null;
 
   const shortcuts = [
-    { key: 'F1', desc: 'Ajuda / Atalhos do Sistema' },
-    { key: 'F2', desc: 'Acessar Catálogo de Produtos' },
-    { key: 'F3', desc: 'Focar Barra de Busca no Caixa' },
-    { key: 'F4', desc: 'Cancelar Último Item' },
-    { key: 'F5', desc: 'Pagamento em Dinheiro Exato' },
-    { key: 'F6', desc: 'Pagamento PIX Dinâmico' },
-    { key: 'F8', desc: 'Sangria ou Suprimento' },
-    { key: 'F9', desc: 'Identificar Cliente' },
-    { key: 'F10', desc: 'Fechar Venda' },
-    { key: 'ESC', desc: 'Retornar / Fechar Modais' },
-    { key: 'ENTER', desc: 'Confirmar Ação' },
-    { key: 'ALT+Num', desc: 'Filtrar Categorias' }
-  ];
+    { key: 'F1', desc: 'Ajuda / Atalhos do Sistema', roles: ['admin', 'user'] },
+    { key: 'F2', desc: 'Acessar Catálogo de Produtos', roles: ['admin'] },
+    { key: 'F3', desc: 'Focar Barra de Busca no Caixa', roles: ['admin', 'user'] },
+    { key: 'F4', desc: 'Cancelar Último Item da Venda', roles: ['user'] },
+    { key: 'F6', desc: 'Registrar Sangria (Aba Caixa)', roles: ['user'] },
+    { key: 'F7', desc: 'Pagamento em Dinheiro Exato', roles: ['user'] },
+    { key: 'F8', desc: 'Acessar Fluxo de Caixa', roles: ['admin', 'user'] },
+    { key: 'F9', desc: 'Fechar Caixa (Aba Caixa)', roles: ['user'] },
+    { key: 'F10', desc: 'Finalizar Venda', roles: ['user'] },
+    { key: 'F11', desc: 'Alternar Tela Cheia', roles: ['admin', 'user'] },
+    { key: 'ESC', desc: 'Retornar / Fechar Modais', roles: ['admin', 'user'] },
+  ].filter(s => s.roles.includes(user?.role || 'user'));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">

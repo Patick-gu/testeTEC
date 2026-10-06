@@ -10,7 +10,7 @@ export const Footer: React.FC = () => {
     <>
       <footer className="w-full bg-white border-t border-slate-200/60 py-2 px-4 lg:px-6">
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <span>Nexus PDV v3.4 • POS-01</span>
+          <span>Kaster PDV v3.4 • POS-01</span>
 
           <div className="flex items-center gap-3">
             {parkedSales.length > 0 && (
@@ -22,7 +22,7 @@ export const Footer: React.FC = () => {
                 {parkedSales.length} em espera
               </button>
             )}
-            <span className="hidden sm:inline">© 2024 Nexus Retail</span>
+            <span className="hidden sm:inline">© 2024 Kaster</span>
           </div>
         </div>
       </footer>

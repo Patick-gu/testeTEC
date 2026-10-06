@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
 class Sale extends Model
 {
@@ -11,6 +11,7 @@ class Sale extends Model
 
     protected $fillable = [
         'user_id',
+        'turno_id',
         'total_amount',
         'payment_method',
         'amount_paid',

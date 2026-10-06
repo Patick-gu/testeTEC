@@ -2,88 +2,77 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\FluxoCaixa;
-use App\Http\Requests\StoreFluxoCaixaRequest;
+use App\Services\FluxoCaixaService;
+use Exception;
 use Illuminate\Http\JsonResponse;
-use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class FluxoCaixaController
 {
-    /**
-     * Display a listing of today's movements for the logged in user.
-     */
-        /**
-     * Get the consolidated status of the cash drawer for the current user today.
-     */
-    public function status(): JsonResponse
+    protected FluxoCaixaService $fluxoCaixaService;
+
+    public function __construct(FluxoCaixaService $fluxoCaixaService)
     {
-        $hoje = Carbon::today();
-        $userId = auth()->id();
-
-        $vendas = \App\Models\Sale::where('user_id', $userId)
-            ->whereDate('created_at', $hoje)
-            ->where('status', 'completed')
-            ->get();
-
-        $totalSales = $vendas->sum('total_amount');
-        $salesCount = $vendas->count();
-
-        $pixTotal = $vendas->where('payment_method', 'pix')->sum('total_amount');
-        $cardDebit = $vendas->where('payment_method', 'debit_card')->sum('total_amount');
-        $cardCredit = $vendas->where('payment_method', 'credit_card')->sum('total_amount');
-        $cashSales = $vendas->where('payment_method', 'cash')->sum('total_amount');
-
-        $movimentacoes = FluxoCaixa::where('user_id', $userId)
-            ->whereDate('created_at', $hoje)
-            ->get();
-
-        $sangrias = $movimentacoes->where('type', 'sangria')->sum('valor');
-        $suprimentos = $movimentacoes->where('type', 'suprimento')->sum('valor');
-        
-        $aberturas = $movimentacoes->where('type', 'abertura')->sum('valor');
-        $openingFund = $aberturas > 0 ? $aberturas : 250; // default 250 if no opening registered
-
-        $cashInDrawer = $openingFund + $cashSales + $suprimentos - $sangrias;
-
-        return response()->json([
-            'openingFund' => (float) $openingFund,
-            'totalSales' => (float) $totalSales,
-            'salesCount' => $salesCount,
-            'cashInDrawer' => (float) $cashInDrawer,
-            'pixTotal' => (float) $pixTotal,
-            'cardDebit' => (float) $cardDebit,
-            'cardCredit' => (float) $cardCredit,
-        ]);
+        $this->fluxoCaixaService = $fluxoCaixaService;
     }
 
-    public function index(): JsonResponse
+    /**
+     * Get the consolidated status of the cash drawer for the current user today.
+     * Deprecated for 'statusAll' or 'Turno-based' flow, but updated just in case.
+     */
+    public function status(Request $request): JsonResponse
     {
-        $movimentacoes = FluxoCaixa::where('user_id', auth()->id())
-            ->whereDate('created_at', Carbon::today())
-            ->latest()
-            ->get();
+        try {
+            $status = $this->fluxoCaixaService->getStatus($request->user());
+            return response()->json($status);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 403;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 403;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
+    }
 
+    public function statusAll(): JsonResponse
+    {
+        $statusAll = $this->fluxoCaixaService->getStatusAll();
+        return response()->json($statusAll);
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $movimentacoes = $this->fluxoCaixaService->getMovimentacoes($request->user());
         return response()->json($movimentacoes);
     }
 
     /**
      * Store a newly created cash movement (Sangria or Suprimento).
      */
-    public function store(StoreFluxoCaixaRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        // Pega os dados validados
-        $dados = $request->validated();
-        
-        // Atrela ao usuário autenticado (que está operando o caixa)
-        $dados['user_id'] = $request->user()->id;
+        try {
+            // Validar campos
+            $dadosValidados = $request->validate([
+                'type' => 'required|in:sangria,suprimento',
+                'valor' => 'required|numeric|min:0.01',
+                'descricao' => 'nullable|string',
+                'turno_id' => 'nullable|uuid',
+            ]);
 
-        // Cria a movimentação
-        $movimentacao = FluxoCaixa::create($dados);
+            $movimentacao = $this->fluxoCaixaService->createMovimentacao($request->user(), $dadosValidados);
 
-        return response()->json([
-            'status' => 'sucesso',
-            'message' => 'Movimentação registrada com sucesso.',
-            'data' => $movimentacao
-        ], 201);
+            return response()->json([
+                'status' => 'sucesso',
+                'message' => 'Movimentação registrada com sucesso.',
+                'data' => $movimentacao,
+            ], 201);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 400;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
     }
 }

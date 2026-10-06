@@ -17,17 +17,18 @@ import { HelpModal } from './components/modals/HelpModal';
 import { Footer } from './components/layout/Footer';
 import { LoginScreen } from './pages/Login';
 import { TeamScreen } from './pages/Team';
+import { ShiftGuard } from './components/ShiftGuard';
 
 const PdvApp: React.FC = () => {
   const { activeTab, setActiveTab } = usePdv();
   const { token, user } = useAuth();
 
-  // Redireciona o Admin para o Catálogo, e o User para o Terminal
+  // Impede o operador de acessar abas restritas (catalogo, equipe)
   useEffect(() => {
     if (user) {
       if (user.role === 'admin' && activeTab === 'terminal') {
         setActiveTab('catalogo');
-      } else if (user.role === 'user' && activeTab !== 'terminal') {
+      } else if (user.role === 'user' && (activeTab === 'catalogo' || activeTab === 'equipe')) {
         setActiveTab('terminal');
       }
     }
@@ -59,25 +60,27 @@ const PdvApp: React.FC = () => {
   return (
     <div className="bg-white min-h-screen flex flex-col justify-between selection:bg-slate-900 selection:text-white">
       <Header />
-      <main className="w-full pt-14 flex-1 flex flex-col">
-        {activeTab === 'terminal' && user.role === 'user' && <TerminalScreen />}
-        
-        {activeTab === 'catalogo' && user.role === 'admin' && <CatalogScreen />}
-        {activeTab === 'caixa' && user.role === 'admin' && <CashMovementScreen />}
-        {activeTab === 'fechamento' && user.role === 'admin' && <PaymentScreen />}
-        
-        {activeTab === 'equipe' && user.role === 'admin' && <TeamScreen />}
+      <ShiftGuard>
+        <main className="w-full pt-14 flex-1 flex flex-col">
+          {activeTab === 'terminal' && user.role === 'user' && <TerminalScreen />}
+          
+          {activeTab === 'catalogo' && user.role === 'admin' && <CatalogScreen />}
+          {activeTab === 'caixa' && <CashMovementScreen />}
+          {activeTab === 'fechamento' && <PaymentScreen />}
+          
+          {activeTab === 'equipe' && user.role === 'admin' && <TeamScreen />}
 
-        {/* Fallback caso a aba ativa não corresponda ao nível de acesso */}
-        {((activeTab === 'terminal' && user.role === 'admin') || 
-          (['catalogo', 'caixa', 'equipe', 'fechamento'].includes(activeTab) && user.role === 'user')) && (
-          <div className="p-8 text-center flex-1 flex flex-col items-center justify-center">
-            <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">lock</span>
-            <h2 className="text-xl font-bold text-slate-800">Acesso Restrito</h2>
-            <p className="text-slate-500 mt-2">Você não tem permissão para visualizar esta área.</p>
-          </div>
-        )}
-      </main>
+          {/* Fallback caso a aba ativa não corresponda ao nível de acesso */}
+          {((activeTab === 'terminal' && user.role === 'admin') || 
+            (['catalogo', 'equipe'].includes(activeTab) && user.role === 'user')) && (
+            <div className="p-8 text-center flex-1 flex flex-col items-center justify-center">
+              <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">lock</span>
+              <h2 className="text-xl font-bold text-slate-800">Acesso Restrito</h2>
+              <p className="text-slate-500 mt-2">Você não tem permissão para visualizar esta área.</p>
+            </div>
+          )}
+        </main>
+      </ShiftGuard>
       <Footer />
       <CpfPromptModal />
       <PaymentModal />

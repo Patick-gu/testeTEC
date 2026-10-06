@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePdv } from '../../context/PdvContext';
 import { useAuth } from '../../context/AuthContext';
 
 export const useCashMovementService = () => {
   const { cashDrawer, addCashMovement, closeTurno, showToast } = usePdv();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [filter, setFilter] = useState<'todos' | 'sangria' | 'suprimento'>('todos');
   const [modalType, setModalType] = useState<'sangria' | 'suprimento' | null>(null);
   const [showCloseModal, setShowCloseModal] = useState<boolean>(false);
-  const [selectedCaixaId, setSelectedCaixaId] = useState<string>('local');
+  const [selectedCaixaId, setSelectedCaixaId] = useState<string>(user?.role === 'admin' ? 'todos' : 'local');
 
   // Form states
   const [opValue, setOpValue] = useState<string>('');
@@ -18,23 +18,66 @@ export const useCashMovementService = () => {
 
   const [blindCount, setBlindCount] = useState<string>('');
 
-  // Mock for admin to see multiple open registers
-  const mockRegisters = [
-    { id: 'caixa-01', operator: 'João Silva', number: '01', data: { openingFund: 150, totalSales: 850.5, salesCount: 12, cashInDrawer: 300, pixTotal: 300, cardDebit: 200, cardCredit: 50.5, movements: [] } },
-    { id: 'caixa-02', operator: 'Maria Fernandes', number: '02', data: { openingFund: 200, totalSales: 1420.0, salesCount: 35, cashInDrawer: 650, pixTotal: 400, cardDebit: 200, cardCredit: 170, movements: [] } },
-  ];
+  const [openRegisters, setOpenRegisters] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      setSelectedCaixaId('todos');
+    }
+  }, [user?.role]);
+
+  const fetchOpenRegisters = async () => {
+    if (user?.role !== 'admin' || !token) return;
+    try {
+      const API_URL = import.meta.env.VITE_API_URL;
+      const res = await fetch(`${API_URL}/caixa/status/all`, {
+        headers: {
+          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const formattedData = data.map((reg: any) => ({
+          ...reg,
+          data: {
+            ...reg.data,
+            movements: (reg.data.movements || []).map((m: any) => ({
+              id: m.id,
+              time: m.created_at ? new Date(m.created_at).toLocaleTimeString('pt-BR', { hour12: false }) : '',
+              type: m.type,
+              paymentMethod: m.payment_method,
+              title: m.type === 'sangria' ? 'Sangria de Caixa' : m.type === 'suprimento' ? 'Suprimento' : m.type === 'entrada' ? 'Venda PDV' : 'Abertura',
+              documentRef: `Recibo ${m.id?.substring(0,4) || 'XX'}`,
+              reason: m.descricao || 'Operação de Caixa',
+              operator: m.operator || 'Sistema',
+              authorizer: m.role === 'admin' ? 'Supervisor' : 'Operador',
+              amount: Number(m.valor)
+            }))
+          }
+        }));
+        setOpenRegisters(formattedData);
+      }
+    } catch (e) {
+      console.error('Failed to fetch open registers', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchOpenRegisters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, token]);
 
   // If viewing local (or if not admin), use real local state, else use mock selected state
   const activeDrawer = (user?.role === 'admin' && selectedCaixaId !== 'local' && selectedCaixaId !== 'todos')
-    ? mockRegisters.find(r => r.id === selectedCaixaId)?.data || cashDrawer
+    ? openRegisters.find(r => r.id === selectedCaixaId)?.data || cashDrawer
     : cashDrawer;
     
   let displayDrawer = activeDrawer;
 
-  // Se o admin selecionar "todos", soma todos os caixas ativos + o local (para simular consolidação)
+  // Se o admin selecionar "todos", soma todos os caixas ativos
   if (user?.role === 'admin' && selectedCaixaId === 'todos') {
-    const allData = [cashDrawer, ...mockRegisters.map(r => r.data)];
+    const allData = [...openRegisters.map(r => r.data)];
     displayDrawer = {
+      openedAt: allData.length > 0 ? allData[0].openedAt : "",
       openingFund: allData.reduce((acc, curr) => acc + curr.openingFund, 0),
       totalSales: allData.reduce((acc, curr) => acc + curr.totalSales, 0),
       salesCount: allData.reduce((acc, curr) => acc + curr.salesCount, 0),
@@ -68,32 +111,66 @@ export const useCashMovementService = () => {
     const val = parseFloat(opValue.replace(',', '.')) || 0;
     if (val <= 0 || !modalType) return;
 
-    if (selectedCaixaId !== 'local' && selectedCaixaId !== 'todos') {
-        showToast('Ação permitida apenas no seu próprio caixa (local).');
-        setModalType(null);
-        return;
+    let targetTurnoId = undefined;
+    if (user?.role === 'admin') {
+        if (selectedCaixaId === 'todos' || selectedCaixaId === 'local') {
+            showToast('Por favor, selecione o caixa (turno) de um operador específico na parte superior da tela.');
+            return;
+        }
+        targetTurnoId = selectedCaixaId; // It's the turno_id from mockRegisters
     }
 
-    addCashMovement(modalType, val, opReason, opAuth || 'Sup. Marcos Silveira').then((success) => {
-      if (success !== false) setModalType(null);
+    addCashMovement(modalType, val, opReason, opAuth, targetTurnoId).then(async (success) => {
+      if (success !== false) {
+        setModalType(null);
+        if (user?.role === 'admin') {
+          await fetchOpenRegisters();
+        }
+      }
     });
   };
 
-  const handleConfirmCloseTurno = () => {
+  const handleConfirmCloseTurno = async () => {
     if (selectedCaixaId !== 'local' && selectedCaixaId !== 'todos') {
         showToast('Ação permitida apenas no seu próprio caixa (local).');
         setShowCloseModal(false);
         return;
     }
-    closeTurno();
-    setShowCloseModal(false);
+    const val = parseFloat(blindCount.replace(',', '.')) || 0;
+    const success = await closeTurno(val);
+    if (success) {
+      setShowCloseModal(false);
+    }
   };
 
   const handlePrintExtrato = () => {
     showToast('Imprimindo relatório de conferência física...');
   };
 
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in a text input or textarea
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      if (isInput) return;
+
+      if (e.key === 'F6') {
+        e.preventDefault();
+        if (user?.role === 'user') {
+          handleOpenOpModal('sangria');
+        }
+      } else if (e.key === 'F9') {
+        e.preventDefault();
+        setShowCloseModal(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [user?.role]);
+
   return {
+
     cashDrawer: displayDrawer,
     filter,
     setFilter,
@@ -115,9 +192,9 @@ export const useCashMovementService = () => {
     handleConfirmCloseTurno,
     handlePrintExtrato,
     
-    // New exports for admin
     isAdmin: user?.role === 'admin',
-    mockRegisters,
+    currentUser: user,
+    mockRegisters: openRegisters,
     selectedCaixaId,
     setSelectedCaixaId
   };

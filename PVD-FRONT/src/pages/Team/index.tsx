@@ -98,7 +98,7 @@ export const TeamScreen: React.FC = () => {
                         <span className="material-symbols-outlined text-[14px]">
                           {member.role === 'admin' ? 'shield_person' : 'point_of_sale'}
                         </span>
-                        {member.role}
+                        {member.role === 'admin' ? 'Supervisor' : 'Operador'}
                       </span>
                     </td>
                     <td className={styles.tableTd}>
@@ -190,8 +190,8 @@ export const TeamScreen: React.FC = () => {
                     value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
                     className={styles.formInput}
                   >
-                    <option value="user">Operador / Caixa</option>
-                    <option value="admin">Administrador</option>
+                    <option value="user">Operador</option>
+                    <option value="admin">Supervisor</option>
                   </select>
                 </div>
                 <div>

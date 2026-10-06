@@ -45,6 +45,7 @@ export const useTeamService = () => {
     try {
       const res = await fetch(`${API_URL}/users`, {
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
@@ -67,6 +68,7 @@ export const useTeamService = () => {
       const res = await fetch(`${API_URL}/users/${userToDelete}`, {
         method: 'DELETE',
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
@@ -92,6 +94,7 @@ export const useTeamService = () => {
       const res = await fetch(url, {
         method,
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },

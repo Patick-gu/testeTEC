@@ -24,21 +24,21 @@ class CategoriaControllerTest extends TestCase
 
     public function test_can_create_categoria()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($user, 'api')->postJson('/api/categorias', [
-            'name' => 'Nova Categoria'
+            'name' => 'Nova Categoria',
         ]);
 
         $response->assertStatus(201);
         $this->assertDatabaseHas('categorias', [
-            'name' => 'Nova Categoria'
+            'name' => 'Nova Categoria',
         ]);
     }
 
     public function test_cannot_create_categoria_without_name()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($user, 'api')->postJson('/api/categorias', []);
 
@@ -48,30 +48,30 @@ class CategoriaControllerTest extends TestCase
 
     public function test_can_update_categoria()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $categoria = Categoria::factory()->create(['name' => 'Nome Antigo']);
 
         $response = $this->actingAs($user, 'api')->putJson("/api/categorias/{$categoria->id}", [
-            'name' => 'Nome Novo'
+            'name' => 'Nome Novo',
         ]);
 
         $response->assertStatus(200);
         $this->assertDatabaseHas('categorias', [
             'id' => $categoria->id,
-            'name' => 'Nome Novo'
+            'name' => 'Nome Novo',
         ]);
     }
 
     public function test_can_delete_categoria()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $categoria = Categoria::factory()->create();
 
         $response = $this->actingAs($user, 'api')->deleteJson("/api/categorias/{$categoria->id}");
 
         $response->assertStatus(200);
         $this->assertDatabaseMissing('categorias', [
-            'id' => $categoria->id
+            'id' => $categoria->id,
         ]);
     }
 }

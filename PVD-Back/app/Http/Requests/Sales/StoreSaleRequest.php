@@ -27,7 +27,7 @@ class StoreSaleRequest extends FormRequest
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.produto_id' => ['required', 'uuid', 'exists:produtos,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
         ];
     }
 }

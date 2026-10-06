@@ -2,12 +2,11 @@
 
 namespace App\Http\Controllers\Users;
 
+use App\Services\AuthService;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
-
-use App\Models\User;
 
 /**
  * @group Autenticação
@@ -16,6 +15,13 @@ use App\Models\User;
  */
 class AuthController extends Controller
 {
+    protected AuthService $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
+
     /**
      * Login do Usuário
      *
@@ -34,32 +40,43 @@ class AuthController extends Controller
      *   "error": "Unauthorized"
      * }
      */
-    public function login(Request $request){
-        $credentials=$request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
+    public function login(Request $request): JsonResponse
+    {
+        try {
+            $credentials = $request->validate([
+                'email' => 'required|string|email',
+                'password' => 'required|string',
+            ]);
 
-        if(!$token = auth('api')->attempt($credentials)){
-                return response()->json(['error' => 'Unauthorized'], 401);
-        };
+            $resultado = $this->authService->login($credentials);
 
-        return response()->json([
-            'acess_Token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth('api')->factory()->getTTL() * 60,
-        ]);
+            return response()->json($resultado);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 401;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 401;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
     }
+
     /**
      * Logout
      *
      * Invalida o Token JWT atual (adiciona na Blacklist).
      */
-    public function logout()
+    public function logout(): JsonResponse
     {
-        auth("api")->logout();
+        try {
+            $this->authService->logout();
 
-        return response()->json(["message" => "Logout realizado com sucesso! Token invalidado."]);
+            return response()->json(["message" => "Logout realizado com sucesso! Token invalidado."]);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 400;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
     }
-
 }

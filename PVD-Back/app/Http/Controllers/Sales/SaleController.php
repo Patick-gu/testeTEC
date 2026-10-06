@@ -2,22 +2,27 @@
 
 namespace App\Http\Controllers\Sales;
 
-use App\Models\Sale;
 use App\Http\Requests\Sales\StoreSaleRequest;
+use App\Services\SaleService;
+use Exception;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
-use App\Models\Produto;
-use App\Models\FluxoCaixa;
-use App\Models\SaleItem;
 
 class SaleController
 {
+    protected SaleService $saleService;
+
+    public function __construct(SaleService $saleService)
+    {
+        $this->saleService = $saleService;
+    }
+
     /**
      * Display a listing of the sales.
      */
     public function index(): JsonResponse
     {
-        $sales = Sale::with(['user', 'items.produto'])->latest()->paginate(15);
+        $user = auth()->user();
+        $sales = $this->saleService->getSales($user);
 
         return response()->json($sales);
     }
@@ -27,69 +32,19 @@ class SaleController
      */
     public function store(StoreSaleRequest $request): JsonResponse
     {
-
-        //transação
-        DB::beginTransaction();
         try {
-            $request->validated('payment_method');
-            $totalVenda = 0;
-            $novaVenda = Sale::create([
-                    'user_id' => $request->user()->id,
-                    'payment_method' => $request->payment_method,
-                    'total_amount' => 0,
-                    'status' => 'completed',
-            ]);
+            $data = $request->validated();
+            $data['amount_paid'] = $request->input('amount_paid');
+            
+            $this->saleService->createSale($request->user(), $data);
 
-            foreach ($request->validated('items') as $item) {
-                $produto = Produto::findOrFail($item['produto_id']);
-                if(! $produto->active){
-                    throw new \Exception("O produto {$produto->name} esta inativo");
-                }
-                if ($produto->stock_quantity < $item['quantity']) {
-                    throw new \Exception("{$produto->name} Estoque insuficiente ");
-                }
-                if($produto->wholesale_min_quantity !== null && $item['quantity'] >= $produto->wholesale_min_quantity){
-                    $subtotal = $produto->wholesale_price * $item['quantity'];
-                    $priceItemUni = $produto->wholesale_price;
-                }
-                else{
-                    $subtotal = $produto->price * $item['quantity'];
-                    $priceItemUni = $produto->price;
-                }
-                $totalVenda += $subtotal;
-
-                SaleItem::create([
-                    'sale_id' => $novaVenda->id,
-                    'produto_id' => $produto->id,
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $priceItemUni,
-                    'subtotal' => $subtotal,
-                ]);
-                $produto->decrement('stock_quantity', $item['quantity']);
+            return response()->json(['status' => 'sucesso']);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 400;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 400;
             }
-            $amountPaid = $request->input('amount_paid', $totalVenda);
-            if ($request->payment_method === 'cash' && $amountPaid < $totalVenda) {
-                throw new \Exception('O valor pago em dinheiro não pode ser menor que o total da venda.');
-            }
-            $changeReturned = max(0, $amountPaid - $totalVenda);
-
-            $novaVenda->update([
-                'total_amount' => $totalVenda,
-                'amount_paid' => $amountPaid,
-                'change_returned' => $changeReturned
-            ]);
-                FluxoCaixa::create([
-                    'user_id' => $request->user()->id,
-                    'type' => 'entrada',
-                    'valor' => $totalVenda,
-                    'descricao' => 'Venda PDV #' . $novaVenda->id
-                ]);
-                DB::commit();
-                return response()->json(['status' => 'sucesso']);
-
-        }catch (\Exception $e){
-            DB::rollBack();
-            return response()->json(['erro' => $e->getMessage()], 400);
+            return response()->json(['erro' => $e->getMessage()], $statusCode);
         }
     }
 
@@ -98,8 +53,17 @@ class SaleController
      */
     public function show(string $id): JsonResponse
     {
-        $sale = Sale::with(['user', 'items.produto'])->findOrFail($id);
+        try {
+            $user = auth()->user();
+            $sale = $this->saleService->getSale($id, $user);
 
-        return response()->json($sale);
+            return response()->json($sale);
+        } catch (Exception $e) {
+            $statusCode = $e->getCode() ?: 403;
+            if (!is_numeric($statusCode) || $statusCode < 100 || $statusCode > 599) {
+                $statusCode = 403;
+            }
+            return response()->json(['error' => $e->getMessage()], $statusCode);
+        }
     }
 }

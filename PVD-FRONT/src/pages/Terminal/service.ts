@@ -50,6 +50,7 @@ export const useTerminalService = () => {
     try {
       const response = await fetch(`${API_URL}/produtos`, {
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
@@ -107,7 +108,9 @@ export const useTerminalService = () => {
   };
 
   const requestClearCart = () => {
-    if (cart.length > 0) setShowCancelConfirm(true);
+    if (cart.length > 0) {
+      setAuthModal({ open: true, actionType: 'clear_cart', itemId: '', itemName: 'Cancelar Venda', authInput: '', error: false });
+    }
   };
   
   const confirmClearCart = () => {
@@ -126,11 +129,12 @@ export const useTerminalService = () => {
   // Auth modal state for delete confirmation
   const [authModal, setAuthModal] = useState<{
     open: boolean;
+    actionType: 'remove_item' | 'clear_cart' | null;
     itemId: string;
     itemName: string;
     authInput: string;
     error: boolean;
-  }>({ open: false, itemId: '', itemName: '', authInput: '', error: false });
+  }>({ open: false, actionType: null, itemId: '', itemName: '', authInput: '', error: false });
 
   // The supervisor code (in a real system this would come from the API)
   const SUPERVISOR_CODE = '1234';
@@ -180,7 +184,7 @@ export const useTerminalService = () => {
 
   // Request item removal — opens auth modal
   const requestRemoveItem = (itemId: string, itemName: string) => {
-    setAuthModal({ open: true, itemId, itemName, authInput: '', error: false });
+    setAuthModal({ open: true, actionType: 'remove_item', itemId, itemName, authInput: '', error: false });
   };
 
   // Update auth input
@@ -191,9 +195,14 @@ export const useTerminalService = () => {
   // Confirm removal with auth
   const confirmRemoveItem = () => {
     if (authModal.authInput === SUPERVISOR_CODE) {
-      removeItem(authModal.itemId);
-      setAuthModal({ open: false, itemId: '', itemName: '', authInput: '', error: false });
-      showToast('Item removido com autorização');
+      if (authModal.actionType === 'remove_item') {
+        removeItem(authModal.itemId);
+        showToast('Item removido com autorização');
+      } else if (authModal.actionType === 'clear_cart') {
+        clearCart();
+        showToast('Venda cancelada com autorização');
+      }
+      setAuthModal({ open: false, actionType: null, itemId: '', itemName: '', authInput: '', error: false });
     } else {
       setAuthModal((prev) => ({ ...prev, error: true }));
     }
@@ -201,7 +210,7 @@ export const useTerminalService = () => {
 
   // Cancel removal
   const cancelRemoveItem = () => {
-    setAuthModal({ open: false, itemId: '', itemName: '', authInput: '', error: false });
+    setAuthModal({ open: false, actionType: null, itemId: '', itemName: '', authInput: '', error: false });
   };
 
   return {
