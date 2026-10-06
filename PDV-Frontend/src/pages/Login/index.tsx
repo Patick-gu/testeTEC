@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { AuthService } from '../../api/auth';
 
 export const LoginScreen: React.FC = () => {
   const { login } = useAuth();
@@ -15,19 +16,8 @@ export const LoginScreen: React.FC = () => {
     setError('');
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL as string;
-      const res = await fetch(`${apiUrl}/login`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      const data = await AuthService.login({ email, password });
       
-      if (!res.ok) {
-        throw new Error('Credenciais inválidas ou backend offline');
-      }
-      
-      const data = await res.json();
       const token = data.acess_Token || data.access_token || data.token;
       if (!token) throw new Error('Token não retornado pela API');
       login(token); 

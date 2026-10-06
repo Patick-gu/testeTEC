@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useUI, useCashflow } from '../../context/index';
 import { useAuth } from '../../context/AuthContext';
+import { CashflowService } from '../../api/cashflow';
 
 export const useCashMovementService = () => {
-  const { cashDrawer, addCashMovement, closeTurno, showToast } = usePdv();
+  const { showToast } = useUI();
+  const { cashDrawer, addCashMovement, closeTurno } = useCashflow();
   const { user, token } = useAuth();
 
   const [filter, setFilter] = useState<'todos' | 'sangria' | 'suprimento'>('todos');
@@ -29,33 +31,26 @@ export const useCashMovementService = () => {
   const fetchOpenRegisters = async () => {
     if (user?.role !== 'admin' || !token) return;
     try {
-      const API_URL = import.meta.env.VITE_API_URL;
-      const res = await fetch(`${API_URL}/caixa/status/all`, {
-        headers: {
-          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const formattedData = data.map((reg: any) => ({
-          ...reg,
-          data: {
-            ...reg.data,
-            movements: (reg.data.movements || []).map((m: any) => ({
-              id: m.id,
-              time: m.created_at ? new Date(m.created_at).toLocaleTimeString('pt-BR', { hour12: false }) : '',
-              type: m.type,
-              paymentMethod: m.payment_method,
-              title: m.type === 'sangria' ? 'Sangria de Caixa' : m.type === 'suprimento' ? 'Suprimento' : m.type === 'entrada' ? 'Venda PDV' : 'Abertura',
-              documentRef: `Recibo ${m.id?.substring(0,4) || 'XX'}`,
-              reason: m.descricao || 'Operação de Caixa',
-              operator: m.operator || 'Sistema',
-              authorizer: m.role === 'admin' ? 'Supervisor' : 'Operador',
-              amount: Number(m.valor)
-            }))
-          }
-        }));
-        setOpenRegisters(formattedData);
-      }
+      const data = await CashflowService.getStatusAll();
+      const formattedData = data.map((reg: any) => ({
+        ...reg,
+        data: {
+          ...reg.data,
+          movements: (reg.data.movements || []).map((m: any) => ({
+            id: m.id,
+            time: m.created_at ? new Date(m.created_at).toLocaleTimeString('pt-BR', { hour12: false }) : '',
+            type: m.type,
+            paymentMethod: m.payment_method,
+            title: m.type === 'sangria' ? 'Sangria de Caixa' : m.type === 'suprimento' ? 'Suprimento' : m.type === 'entrada' ? 'Venda PDV' : 'Abertura',
+            documentRef: `Recibo ${m.id?.substring(0,4) || 'XX'}`,
+            reason: m.descricao || 'Operação de Caixa',
+            operator: m.operator || 'Sistema',
+            authorizer: m.role === 'admin' ? 'Supervisor' : 'Operador',
+            amount: Number(m.valor)
+          }))
+        }
+      }));
+      setOpenRegisters(formattedData);
     } catch (e) {
       console.error('Failed to fetch open registers', e);
     }
@@ -90,7 +85,7 @@ export const useCashMovementService = () => {
   }
 
   // Filtered movements
-  const filteredMovements = displayDrawer.movements.filter((m) => {
+  const filteredMovements = displayDrawer.movements.filter((m: any) => {
     if (filter === 'todos') return true;
     return m.type === filter;
   });

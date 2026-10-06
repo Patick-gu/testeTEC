@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCatalogService } from '../service';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
+import { styles } from '../style';
 
 interface Props {
   svc: ReturnType<typeof useCatalogService>;
@@ -13,8 +14,7 @@ export const CategoryFilterBar: React.FC<Props> = ({ svc }) => {
     setSelectedCategory,
     searchInputRef
   } = svc;
-  const styles: any = new Proxy({}, { get: (t, p) => p });
-
+  
   return (
     <>
         {/* Category Filter Bar */}
@@ -25,7 +25,7 @@ export const CategoryFilterBar: React.FC<Props> = ({ svc }) => {
               <button
                 key={cat.id}
                 onClick={() => {
-                  setSelectedCategory(cat.id);
+                  setSelectedCategory(cat.id as any);
                   searchInputRef.current?.focus();
                 }}
                 className={`${styles.categoryButtonBase} ${

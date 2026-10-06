@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useSale } from '../../context/index';
 import { ParkedSalesModal } from '../modals/ParkedSalesModal';
 
 export const Footer: React.FC = () => {
-  const { parkedSales } = usePdv();
+  const { parkedSales } = useSale();
   const [showParkedModal, setShowParkedModal] = useState<boolean>(false);
 
   return (

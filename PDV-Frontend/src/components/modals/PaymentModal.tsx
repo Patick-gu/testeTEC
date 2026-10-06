@@ -1,21 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useSale, useUI, useCart } from '../../context/index';
 import { PaymentMethodType, AppliedPayment } from '../../types/pdv';
 import { playBeep } from '../../utils/audio';
 
 export const PaymentModal: React.FC = () => {
-  const {
-    showPaymentModal,
-    setShowPaymentModal,
-    selectedPaymentMethod,
-    setSelectedPaymentMethod,
-    total,
-    cart,
-    saleNumber,
-    customer,
-    completeSale,
-    showToast
-  } = usePdv();
+  const { showPaymentModal, setShowPaymentModal, showToast } = useUI();
+  const { total, cart } = useCart();
+  const { selectedPaymentMethod, setSelectedPaymentMethod, saleNumber, customer, completeSale } = useSale();
 
   const [activeMethod, setActiveMethod] = useState<PaymentMethodType>(selectedPaymentMethod);
   const [receivedCashStr, setReceivedCashStr] = useState<string>('0,00');

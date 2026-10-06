@@ -88,8 +88,6 @@ export const PaymentScreen: React.FC = () => {
           </div>
 
         </div>
-
-      </div>
     </div>
   );
 };

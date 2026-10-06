@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { PdvProvider, usePdv } from './context/PdvContext';
+import { useUI, GlobalProvider } from './context/index';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { Header } from './components/layout/Header';
@@ -20,7 +20,7 @@ import { TeamScreen } from './pages/Team';
 import { ShiftGuard } from './components/ShiftGuard';
 
 const PdvApp: React.FC = () => {
-  const { activeTab, setActiveTab } = usePdv();
+  const { activeTab, setActiveTab } = useUI();
   const { token, user } = useAuth();
 
   // Impede o operador de acessar abas restritas (catalogo, equipe)
@@ -97,9 +97,9 @@ export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <PdvProvider>
+        <GlobalProvider>
           <PdvApp />
-        </PdvProvider>
+        </GlobalProvider>
       </AuthProvider>
     </ToastProvider>
   );

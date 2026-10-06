@@ -9,8 +9,8 @@ interface Props {
 export const SummaryCard: React.FC<Props> = ({ svc }) => {
   const { cashDrawer } = svc;
 
-  const sangriasTotal = cashDrawer.movements.filter(m => m.type === 'sangria').reduce((acc, m) => acc + m.amount, 0);
-  const suprimentosTotal = cashDrawer.movements.filter(m => m.type === 'suprimento').reduce((acc, m) => acc + m.amount, 0);
+  const sangriasTotal = cashDrawer.movements.filter((m: any) => m.type === 'sangria').reduce((acc: number, m: any) => acc + m.amount, 0);
+  const suprimentosTotal = cashDrawer.movements.filter((m: any) => m.type === 'suprimento').reduce((acc: number, m: any) => acc + m.amount, 0);
   const vendasEspecie = cashDrawer.cashInDrawer - cashDrawer.openingFund - suprimentosTotal + sangriasTotal;
 
   return (

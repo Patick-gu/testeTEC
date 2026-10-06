@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { usePdv } from '../../context/PdvContext';
+import { useUI } from '../../context/index';
+import { UserService } from '../../api/users';
 
 export interface TeamMember {
   id: string;
@@ -12,8 +12,7 @@ export interface TeamMember {
 }
 
 export const useTeamService = () => {
-  const { token } = useAuth();
-  const { showToast } = usePdv();
+  const { showToast } = useUI();
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
@@ -33,7 +32,6 @@ export const useTeamService = () => {
     status: 'active' 
   });
 
-  const API_URL = import.meta.env.VITE_API_URL;
   useEffect(() => {
     fetchTeam();
     // eslint-disable-next-line
@@ -43,14 +41,7 @@ export const useTeamService = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/users`, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!res.ok) throw new Error('Falha ao buscar equipe no banco de dados');
-      const data = await res.json();
+      const data = await UserService.getAll();
       setTeam(data);
     } catch (err: any) {
       console.error(err);
@@ -65,14 +56,7 @@ export const useTeamService = () => {
   const confirmDelete = async () => {
     if (!userToDelete) return;
     try {
-      const res = await fetch(`${API_URL}/users/${userToDelete}`, {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!res.ok) throw new Error('Erro ao deletar usuário no servidor');
+      await UserService.delete(userToDelete);
       setTeam(prev => prev.filter(u => u.id !== userToDelete));
       setUserToDelete(null);
       showToast('Usuário removido com sucesso!');
@@ -85,32 +69,15 @@ export const useTeamService = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingMember ? `${API_URL}/users/${editingMember.id}` : `${API_URL}/users`;
-      const method = editingMember ? 'PUT' : 'POST';
-      
       const payload: any = { ...formData };
       if (!payload.password) delete payload.password; // backend valida password conditionally
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Erro ao salvar os dados no servidor');
-      }
-
-      const savedUser = await res.json();
-      
+      let savedUser: any;
       if (editingMember) {
+        savedUser = await UserService.update(editingMember.id, payload);
         setTeam(prev => prev.map(u => u.id === savedUser.id ? savedUser : u));
       } else {
+        savedUser = await UserService.create(payload);
         setTeam(prev => [...prev, savedUser]);
       }
       setShowModal(false);

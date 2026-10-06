@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCatalogService } from '../service';
+import { styles } from '../style';
 
 interface Props {
   svc: ReturnType<typeof useCatalogService>;
@@ -21,8 +22,7 @@ export const TopCommandStrip: React.FC<Props> = ({ svc }) => {
     criticalStockCount,
   } = svc;
 
-  const styles: any = new Proxy({}, { get: (t, p) => p });
-
+  
   return (
     <div className={styles.topStrip}>
       {/* Search Input Box (8 cols) */}

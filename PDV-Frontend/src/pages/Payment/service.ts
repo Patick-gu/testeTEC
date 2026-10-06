@@ -1,20 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useUI, useSale, useCart } from '../../context/index';
 import { PaymentMethodType, AppliedPayment } from '../../types/pdv';
 import { playBeep } from '../../utils/audio';
 
 export const usePaymentService = () => {
-  const {
-    total,
-    cart,
-    totalQuantity,
-    saleNumber,
-    customer,
-    setCustomer,
-    setActiveTab,
-    completeSale,
-    setShowCustomerModal
-  } = usePdv();
+  const { setActiveTab, setShowCustomerModal } = useUI();
+  const { total, cart, totalQuantity } = useCart();
+  const { saleNumber, customer, setCustomer, completeSale } = useSale();
 
   const [activeMethod, setActiveMethod] = useState<PaymentMethodType>(() => {
     const saved = sessionStorage.getItem('selected_payment_method');

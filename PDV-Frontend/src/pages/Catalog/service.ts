@@ -1,22 +1,17 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useUI, useSale, useCart } from '../../context/index';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { ProductCategory, Product } from '../../types/pdv';
+import { ProductService } from '../../api/products';
+import { api } from '../../api/api';
 
 export const useCatalogService = () => {
   const { showToast } = useToast();
-  const {
-    addProductToCart,
-    cart,
-    total,
-    setActiveTab,
-    setWeighingProduct,
-    setShowScaleModal,
-    scaleWeight,
-    openPaymentModal
-  } = usePdv();
-  const { token, user } = useAuth();
+  const { setActiveTab, setWeighingProduct, setShowScaleModal, scaleWeight } = useUI();
+  const { addProductToCart, cart, total } = useCart();
+  const { openPaymentModal } = useSale();
+  const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -32,8 +27,6 @@ export const useCatalogService = () => {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL as string;
-
   useEffect(() => {
     fetchProducts();
     // eslint-disable-next-line
@@ -43,12 +36,7 @@ export const useCatalogService = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/produtos`, {
-        headers: {
-          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Falha ao buscar produtos');
-      const data = await res.json();
+      const data = await ProductService.getAll();
       
       // Map backend fields to frontend expected types to prevent crashes
       const mappedData = data.map((p: any) => ({
@@ -81,30 +69,15 @@ export const useCatalogService = () => {
 
     setImportLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', importFile);
-
-      const res = await fetch(`${API_URL}/produtos/import`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-          // FormData automatiza o Content-Type para multipart/form-data
-        },
-        body: formData
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || errorData.message || 'Erro ao importar arquivo');
-      }
+      await ProductService.importCsv(importFile);
 
       showToast("Importação concluída com sucesso!", "success");
       setShowImportModal(false);
       setImportFile(null);
       fetchProducts(); // Recarrega os produtos após upload
     } catch (err: any) {
-      showToast("Erro na importação: " + err.message, "error");
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      showToast("Erro na importação: " + errMsg, "error");
     } finally {
       setImportLoading(false);
     }
@@ -112,16 +85,8 @@ export const useCatalogService = () => {
 
   const handleDownloadModel = async () => {
     try {
-      const res = await fetch(`${API_URL}/produtos/import/template`, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (!res.ok) throw new Error('Falha ao baixar o modelo');
-      
-      const blob = await res.blob();
+      const res = await api.get('/produtos/import/template', { responseType: 'blob' });
+      const blob = res.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -149,14 +114,8 @@ export const useCatalogService = () => {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${API_URL}/categorias`, {
-        headers: {
-          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setDbCategories(data);
-      }
+      const data = await ProductService.getCategories();
+      setDbCategories(data);
     } catch (err) {
       console.error("Erro ao carregar categorias", err);
     }
@@ -168,27 +127,15 @@ export const useCatalogService = () => {
 
     setCategoryLoading(true);
     try {
-      const res = await fetch(`${API_URL}/categorias`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: newCategoryName })
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Erro ao criar categoria');
-      }
+      await api.post('/categorias', { name: newCategoryName });
 
       await fetchCategories(); // recarrega a lista
       setShowCategoryModal(false);
       setNewCategoryName('');
       showToast("Categoria adicionada com sucesso!", "success");
     } catch (err: any) {
-      showToast("Erro ao criar categoria: " + err.message, "error");
+      const errMsg = err.response?.data?.message || err.message;
+      showToast("Erro ao criar categoria: " + errMsg, "error");
     } finally {
       setCategoryLoading(false);
     }
@@ -295,12 +242,7 @@ export const useCatalogService = () => {
     try {
       // Deletar em série (ou concorrente via Promise.all)
       await Promise.all(itemsToDelete.map(async (id) => {
-        const res = await fetch(`${API_URL}/produtos/${id}`, {
-          method: 'DELETE',
-          headers: {
-          'Accept': 'application/json', 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error('Falha em um ou mais itens');
+        await ProductService.delete(id);
       }));
       
       showToast(itemsToDelete.length > 1 ? `${itemsToDelete.length} Produtos excluídos!` : "Produto excluído com sucesso!", "success");
@@ -349,27 +291,15 @@ export const useCatalogService = () => {
         payload.wholesale_min_quantity = null;
       }
 
-      const res = await fetch(`${API_URL}/produtos/${editingProduct.id}`, {
-        method: 'PUT',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || errorData.message || 'Erro ao editar produto');
-      }
+      await ProductService.update(editingProduct.id, payload);
 
       showToast("Produto atualizado com sucesso!", "success");
       setShowEditModal(false);
       setEditingProduct(null);
       fetchProducts();
     } catch (err: any) {
-      showToast("Erro ao editar produto: " + err.message, "error");
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      showToast("Erro ao editar produto: " + errMsg, "error");
     } finally {
       setEditLoading(false);
     }
@@ -408,26 +338,14 @@ export const useCatalogService = () => {
         payload.wholesale_min_quantity = createForm.wholesale_min_quantity;
       }
 
-      const res = await fetch(`${API_URL}/produtos`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || errorData.message || 'Erro ao criar produto');
-      }
+      await ProductService.create(payload);
 
       showToast("Produto criado com sucesso!", "success");
       setShowCreateModal(false);
       fetchProducts();
     } catch (err: any) {
-      showToast("Erro ao criar produto: " + err.message, "error");
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      showToast("Erro ao criar produto: " + errMsg, "error");
     } finally {
       setCreateLoading(false);
     }

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useSale, useUI } from '../../context/index';
 
 export const CustomerModal: React.FC = () => {
-  const { showCustomerModal, setShowCustomerModal, customer, setCustomer, showToast } = usePdv();
+  const { showCustomerModal, setShowCustomerModal, showToast } = useUI();
+  const { customer, setCustomer } = useSale();
   const [cpf, setCpf] = useState<string>(customer.cpf);
   const [name, setName] = useState<string>(customer.name.startsWith('Consumidor') ? '' : customer.name);
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCatalogService } from '../service';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
+import { styles } from '../style';
 
 interface Props {
   svc: ReturnType<typeof useCatalogService>;
@@ -42,8 +43,7 @@ export const Modals: React.FC<Props> = ({ svc }) => {
     itemsToDelete,
     confirmDelete
   } = svc;
-  const styles: any = new Proxy({}, { get: (t, p) => p });
-
+  
   return (
     <>
       {showImportModal && (

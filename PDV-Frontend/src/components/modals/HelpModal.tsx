@@ -1,9 +1,9 @@
 import React from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useUI } from '../../context/index';
 import { useAuth } from '../../context/AuthContext';
 
 export const HelpModal: React.FC = () => {
-  const { showHelpModal, setShowHelpModal } = usePdv();
+  const { showHelpModal, setShowHelpModal } = useUI();
   const { user } = useAuth(); // Import useAuth to check user role
 
   if (!showHelpModal) return null;

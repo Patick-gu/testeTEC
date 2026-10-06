@@ -1,3 +1,5 @@
+import { playBeep } from '../../../utils/audio';
+const formatBRL = (val: number) => val.toFixed(2).replace('.', ',');
 import React from 'react';
 import { usePaymentService } from '../service';
 
@@ -11,11 +13,10 @@ export const PaymentRightPanel: React.FC<PaymentRightPanelProps> = ({ svc }) => 
     handleCashKeyDown, handleExactCash, handleClearCash, receivedCash, cashTroco, pixTimer, formatTimer,
     isCleanInput, setIsCleanInput, selectedInstallment, setSelectedInstallment,
     splitAmount, setSplitAmount, splitMethod, setSplitMethod, handleAddSplitPayment,
-    handleConfirmCheckout, remainingToPay, totalPaid
+    handleConfirmCheckout, remainingToPay, totalPaid, pixPaid, setPixPaid
   } = svc;
 
   return (
-    {/* RIGHT PANEL (7 cols): Hero totalizer, dynamic payment workspace, fiscal bar, confirm button */}
           <div className="xl:col-span-7 flex flex-col gap-4">
             
             {/* Hero Totalizer Card */}
@@ -419,7 +420,7 @@ export const PaymentRightPanel: React.FC<PaymentRightPanelProps> = ({ svc }) => 
 
                     <select
                       value={splitMethod}
-                      onChange={(e) => setSplitMethod(e.target.value as PaymentMethodType)}
+                      onChange={(e) => setSplitMethod(e.target.value as any)}
                       className="bg-white border border-slate-200/60 px-3 py-2.5 rounded-xl text-slate-700 text-sm focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
                     >
                       <option value="cash">Dinheiro</option>
@@ -440,5 +441,6 @@ export const PaymentRightPanel: React.FC<PaymentRightPanelProps> = ({ svc }) => 
               )}
 
             </div>
+          </div>
   );
 };

@@ -1,8 +1,8 @@
 import React from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useUI } from '../../context/index';
 
 export const Toast: React.FC = () => {
-  const { toastMessage } = usePdv();
+  const { toastMessage } = useUI();
 
   if (!toastMessage) return null;
 

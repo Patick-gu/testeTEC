@@ -54,7 +54,7 @@ export const LedgerTable: React.FC<Props> = ({ svc }) => {
                   </tr>
                 </thead>
                 <tbody className={styles.ledger.tbody}>
-                  {filteredMovements.map((mov) => {
+                  {filteredMovements.map((mov: any) => {
                     const isSangria = mov.type === 'sangria';
                     const isAbertura = mov.type === 'abertura';
                     const corDot = isSangria ? 'bg-rose-500' : isAbertura ? 'bg-blue-600' : 'bg-emerald-500';

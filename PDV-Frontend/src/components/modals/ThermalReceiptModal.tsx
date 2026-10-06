@@ -1,8 +1,9 @@
 import React from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useSale, useUI } from '../../context/index';
 
 export const ThermalReceiptModal: React.FC = () => {
-  const { recentReceipt, showReceiptModal, setShowReceiptModal, showToast } = usePdv();
+  const { showReceiptModal, setShowReceiptModal, showToast } = useUI();
+  const { recentReceipt } = useSale();
 
   if (!showReceiptModal || !recentReceipt) return null;
 
@@ -28,7 +29,7 @@ export const ThermalReceiptModal: React.FC = () => {
           </button>
         </div>
 
-        <div className="p-5 bg-white border border-slate-200/60 rounded-xl font-mono-num text-[11px] text-slate-800 select-all mb-4">
+        <div className="p-5 bg-white border border-slate-200/60 rounded-xl font-mono-num text-[11px] text-slate-800 select-all mb-4 print-area">
           <div className="text-center pb-3 border-b border-dashed border-slate-200">
             <div className="font-bold text-sm text-slate-900 mb-1">KASTER LTDA</div>
             <div className="text-slate-500">CNPJ: 12.345.678/0001-90</div>

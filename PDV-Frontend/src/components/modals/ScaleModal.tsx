@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useUI, useCart } from '../../context/index';
 
 export const ScaleModal: React.FC = () => {
-  const {
-    showScaleModal,
-    setShowScaleModal,
-    weighingProduct,
-    setWeighingProduct,
-    addProductToCart,
-    scaleWeight,
-    setScaleWeight
-  } = usePdv();
+  const { showScaleModal, setShowScaleModal, weighingProduct, setWeighingProduct, scaleWeight, setScaleWeight } = useUI();
+  const { addProductToCart } = useCart();
 
   const [inputWeight, setInputWeight] = useState<string>(
     scaleWeight > 0 ? scaleWeight.toFixed(3).replace('.', ',') : '0,450'

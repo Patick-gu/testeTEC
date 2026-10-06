@@ -8,11 +8,10 @@ interface PaymentLeftPanelProps {
 
 export const PaymentLeftPanel: React.FC<PaymentLeftPanelProps> = ({ svc }) => {
   const {
-    activeMethod, setActiveMethod, appliedPayments, formatBRL, handleRemovePayment, remainingToPay
+    activeMethod, setActiveMethod, appliedPayments, formatBRL, handleRemovePayment, remainingToPay, totalPaid
   } = svc;
 
   return (
-    {/* LEFT PANEL (5 cols): Method selector, applied payments table, PINPad status */}
           <div className="xl:col-span-5 flex flex-col gap-4">
             
             <PaymentMethodsGrid 

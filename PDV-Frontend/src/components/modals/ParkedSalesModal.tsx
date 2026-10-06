@@ -1,11 +1,11 @@
 import React from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useSale } from '../../context/index';
 
 export const ParkedSalesModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({
   isOpen,
   onClose
 }) => {
-  const { parkedSales, restoreParkedSale } = usePdv();
+  const { parkedSales, restoreParkedSale } = useSale();
 
   if (!isOpen) return null;
 

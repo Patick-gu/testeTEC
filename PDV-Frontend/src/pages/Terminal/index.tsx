@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTerminalService } from './service';
-import { usePdv } from '../../context/PdvContext';
+
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 import { BarcodeForm } from './components/BarcodeForm';
@@ -8,8 +8,8 @@ import { LastScannedItem } from './components/LastScannedItem';
 import { CartTable } from './components/CartTable';
 import { TotalsCard } from './components/TotalsCard';
 import { AuthModal } from './components/AuthModal';
+import { styles } from './style';
 
-declare const styles: Record<string, string>;
 
 export const TerminalScreen: React.FC = () => {
   const svc = useTerminalService();

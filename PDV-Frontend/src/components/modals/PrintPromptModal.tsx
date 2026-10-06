@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useUI } from '../../context/index';
 
 export const PrintPromptModal: React.FC = () => {
-  const { showPrintPromptModal, setShowPrintPromptModal, setShowReceiptModal } = usePdv();
+  const { showPrintPromptModal, setShowPrintPromptModal, setShowReceiptModal } = useUI();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

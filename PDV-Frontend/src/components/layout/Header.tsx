@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useSale, useUI, useCart } from '../../context/index';
 import { useAuth } from '../../context/AuthContext';
 
 export const Header: React.FC = () => {
-  const {
-    activeTab,
-    setActiveTab,
-    setShowHelpModal,
-    cart,
-    openPaymentModal,
-  } = usePdv();
+  const { activeTab, setActiveTab, setShowHelpModal } = useUI();
+  const { cart } = useCart();
+  const { openPaymentModal } = useSale();
   const { user, logout } = useAuth();
 
   const [timeStr, setTimeStr] = useState<string>('');

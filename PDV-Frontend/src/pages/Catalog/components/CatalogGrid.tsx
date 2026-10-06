@@ -1,6 +1,7 @@
 import React from 'react';
 import { useCatalogService } from '../service';
 import { ConfirmModal } from '../../../components/ui/ConfirmModal';
+import { styles } from '../style';
 
 interface Props {
   svc: ReturnType<typeof useCatalogService>;
@@ -17,8 +18,7 @@ export const CatalogGrid: React.FC<Props> = ({ svc }) => {
     setItemsToDelete,
     searchQuery
   } = svc;
-  const styles: any = new Proxy({}, { get: (t, p) => p });
-
+  
   return (
     <>
         {/* Catalog Grid & Right Mini-Cart Sidebar */}

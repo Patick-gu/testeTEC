@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTerminalService } from '../service';
+import { styles } from '../style';
 
-declare const styles: Record<string, string>;
 
 interface Props {
   svc: ReturnType<typeof useTerminalService>;

@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { usePdv } from '../../context/PdvContext';
-import { useAuth } from '../../context/AuthContext';
+import { useSale, useUI, useCart, useCashflow } from '../../context/index';
 import { Product } from '../../types/pdv';
+import { ProductService } from '../../api/products';
 
 export const useTerminalService = () => {
-  const { token } = useAuth();
-  const pdv = usePdv();
+  const pdv = { ...useUI(), ...useCart(), ...useSale(), ...useCashflow() };
   const {
     cart,
     subtotal,
@@ -39,23 +38,14 @@ export const useTerminalService = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL as string;
-
   useEffect(() => {
     fetchProducts();
-  }, [token]);
+  }, []);
 
   const fetchProducts = async () => {
     setIsLoadingProducts(true);
     try {
-      const response = await fetch(`${API_URL}/produtos`, {
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok) throw new Error('Falha ao carregar produtos');
-      const data = await response.json();
+      const data = await ProductService.getAll();
       
       const mappedData: Product[] = data.map((p: any) => ({
         id: p.id.toString(),

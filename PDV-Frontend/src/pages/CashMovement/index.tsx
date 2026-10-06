@@ -1,6 +1,5 @@
 import React from 'react';
 import { useCashMovementService } from './service';
-import { styles } from './style';
 import { TopBar } from './components/TopBar';
 import { MetricsGrid } from './components/MetricsGrid';
 import { ActionLauncher } from './components/ActionLauncher';
@@ -8,13 +7,14 @@ import { SummaryCard } from './components/SummaryCard';
 import { Peripherals } from './components/Peripherals';
 import { LedgerTable } from './components/LedgerTable';
 import { Modals } from './components/Modals';
+import { styles } from './style';
 
 export const CashMovementScreen: React.FC = () => {
   const svc = useCashMovementService();
 
   return (
-    <div className={styles.container}>
-      <div className={styles.innerContainer}>
+    <div className="flex flex-col w-full flex-1">
+      <div className="w-full px-4 lg:px-6 py-5 flex flex-col gap-5">
         
         <TopBar svc={svc} />
 

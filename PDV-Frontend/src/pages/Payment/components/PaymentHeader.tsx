@@ -16,7 +16,6 @@ export const PaymentHeader: React.FC<PaymentHeaderProps> = ({
   setShowCustomerModal
 }) => {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200/60 px-4 py-3 rounded-xl">
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200/60 px-4 py-3 rounded-xl">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-slate-500 text-xs bg-slate-50 px-2.5 py-1 rounded-lg font-mono-num">

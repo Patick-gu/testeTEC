@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { usePdv } from '../../context/PdvContext';
+import { useSale, useUI } from '../../context/index';
 
 export const CpfPromptModal: React.FC = () => {
-  const {
-    showCpfPromptModal,
-    setShowCpfPromptModal,
-    proceedToPayment,
-    customer,
-  } = usePdv();
+  const { showCpfPromptModal, setShowCpfPromptModal } = useUI();
+  const { proceedToPayment, customer } = useSale();
 
   const [cpfInput, setCpfInput] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
